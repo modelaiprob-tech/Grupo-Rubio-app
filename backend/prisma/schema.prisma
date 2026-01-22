@@ -1,0 +1,399 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                  Int                 @id @default(autoincrement())
+  email               String              @unique
+  passwordHash        String              @map("password_hash")
+  nombre              String
+  rol                 Rol                 @default(TRABAJADOR)
+  trabajadorId        Int?                @unique @map("trabajador_id")
+  activo              Boolean             @default(true)
+  ultimoAcceso        DateTime?           @map("ultimo_acceso")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  asignacionesCreadas Asignacion[]        @relation("CreadorAsignacion")
+  ausenciasAprobadas  Ausencia[]          @relation("AprobadorAusencia")
+  historialCambios    HistorialCambios[]
+  plantillas_turnos   plantillas_turnos[]
+  registrosValidados  RegistroHoras[]     @relation("ValidadorRegistro")
+  trabajador          Trabajador?         @relation(fields: [trabajadorId], references: [id])
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id           Int          @id @default(autoincrement())
+  codigo       String       @unique
+  nombre       String
+  descripcion  String?
+  salarioBase  Decimal      @map("salario_base") @db.Decimal(10, 2)
+  plusConvenio Decimal      @map("plus_convenio") @db.Decimal(10, 2)
+  precioHora   Decimal      @map("precio_hora") @db.Decimal(10, 2)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  trabajadores Trabajador[]
+
+  @@map("categorias")
+}
+
+model Trabajador {
+  id                        Int                         @id @default(autoincrement())
+  nombre                    String
+  apellidos                 String
+  dni                       String                      @unique
+  telefono                  String?
+  email                     String?
+  direccion                 String?
+  codigoPostal              String?                     @map("codigo_postal")
+  localidad                 String?
+  fechaNacimiento           DateTime?                   @map("fecha_nacimiento")
+  fechaAlta                 DateTime                    @map("fecha_alta")
+  fechaBaja                 DateTime?                   @map("fecha_baja")
+  categoriaId               Int                         @map("categoria_id")
+  tipoContrato              TipoContrato                @map("tipo_contrato")
+  horasContrato             Decimal                     @map("horas_contrato") @db.Decimal(5, 2)
+  costeHora                 Decimal?                    @map("coste_hora") @db.Decimal(10, 2)
+  numeroSeguridadSocial     String?                     @map("numero_seguridad_social")
+  cuentaBancaria            String?                     @map("cuenta_bancaria")
+  diasVacacionesAnuales     Int                         @default(37) @map("dias_vacaciones_anuales")
+  diasAsuntosPropios        Int                         @default(9) @map("dias_asuntos_propios")
+  activo                    Boolean                     @default(true)
+  notas                     String?
+  createdAt                 DateTime                    @default(now()) @map("created_at")
+  updatedAt                 DateTime                    @updatedAt @map("updated_at")
+  asignaciones              Asignacion[]
+  ausencias                 Ausencia[]
+  disponibilidad_trabajador disponibilidad_trabajador[]
+  horariosFijos             HorarioFijo[]
+  plantillas_turnos_detalle plantillas_turnos_detalle[]
+  registrosHoras            RegistroHoras[]
+  centrosAsignados          TrabajadorCentro[]
+  categoria                 Categoria                   @relation(fields: [categoriaId], references: [id])
+  usuario                   Usuario?
+
+  @@map("trabajadores")
+}
+
+model Cliente {
+  id               Int             @id @default(autoincrement())
+  nombre           String
+  cif              String          @unique
+  direccion        String?
+  codigoPostal     String?         @map("codigo_postal")
+  localidad        String?
+  provincia        String?
+  telefono         String?
+  email            String?
+  contactoNombre   String?         @map("contacto_nombre")
+  contactoTelefono String?         @map("contacto_telefono")
+  contactoEmail    String?         @map("contacto_email")
+  tipoCliente      String?         @map("tipo_cliente")
+  activo           Boolean         @default(true)
+  notas            String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  centrosTrabajo   CentroTrabajo[]
+
+  @@map("clientes")
+}
+
+model CentroTrabajo {
+  id                      Int                 @id @default(autoincrement())
+  clienteId               Int                 @map("cliente_id")
+  nombre                  String
+  direccion               String?
+  codigoPostal            String?             @map("codigo_postal")
+  localidad               String?
+  telefono                String?
+  contacto                String?
+  horarioApertura         String?             @map("horario_apertura")
+  horarioCierre           String?             @map("horario_cierre")
+  activo                  Boolean             @default(true)
+  notas                   String?
+  createdAt               DateTime            @default(now()) @map("created_at")
+  updatedAt               DateTime            @updatedAt @map("updated_at")
+  horario_limpieza_inicio String?             @db.VarChar(10)
+  horario_limpieza_fin    String?             @db.VarChar(10)
+  flexibilidad_horaria    String?             @default("FLEXIBLE") @db.VarChar(20)
+  tipo_servicio           String?             @default("FRECUENTE") @db.VarChar(20)
+  frecuencia              String?             @db.VarChar(30)
+  dias_servicio           String?             @db.VarChar(50)
+  observaciones_horarias  String?
+  asignaciones            Asignacion[]
+  cliente                 Cliente             @relation(fields: [clienteId], references: [id])
+  horariosFijos           HorarioFijo[]
+  plantillas_turnos       plantillas_turnos[]
+  trabajadoresAsignados   TrabajadorCentro[]
+
+  @@map("centros_trabajo")
+}
+
+model TrabajadorCentro {
+  id             Int           @id @default(autoincrement())
+  trabajadorId   Int           @map("trabajador_id")
+  centroId       Int           @map("centro_id")
+  esHabitual     Boolean       @default(false) @map("es_habitual")
+  horarioDefecto String?       @map("horario_defecto")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  centro         CentroTrabajo @relation(fields: [centroId], references: [id])
+  trabajador     Trabajador    @relation(fields: [trabajadorId], references: [id])
+
+  @@unique([trabajadorId, centroId])
+  @@map("trabajador_centro")
+}
+
+model TipoAusencia {
+  id                   Int        @id @default(autoincrement())
+  codigo               String     @unique
+  nombre               String
+  descripcion          String?
+  restaVacaciones      Boolean    @default(false) @map("resta_vacaciones")
+  restaAsuntos         Boolean    @default(false) @map("resta_asuntos")
+  pagada               Boolean    @default(true)
+  colorHex             String     @default("#6B7280") @map("color_hex")
+  diasMaximo           Int?       @map("dias_maximo")
+  requiereJustificante Boolean    @default(false) @map("requiere_justificante")
+  activo               Boolean    @default(true)
+  createdAt            DateTime   @default(now()) @map("created_at")
+  ausencias            Ausencia[]
+
+  @@map("tipos_ausencia")
+}
+
+model Ausencia {
+  id              Int            @id @default(autoincrement())
+  trabajadorId    Int            @map("trabajador_id")
+  tipoAusenciaId  Int            @map("tipo_ausencia_id")
+  fechaInicio     DateTime       @map("fecha_inicio") @db.Date
+  fechaFin        DateTime       @map("fecha_fin") @db.Date
+  diasTotales     Int            @map("dias_totales")
+  motivo          String?
+  estado          EstadoAusencia @default(PENDIENTE)
+  aprobadoPorId   Int?           @map("aprobado_por_id")
+  fechaAprobacion DateTime?      @map("fecha_aprobacion")
+  documentoUrl    String?        @map("documento_url")
+  notas           String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  archivada       Boolean        @default(false)
+  contingencia    String?
+  entidadEmisora  String?        @map("entidad_emisora")
+  fechaAltaReal   DateTime?      @map("fecha_alta_real") @db.Date
+  numeroParte     String?        @map("numero_parte")
+  observaciones   String?
+  aprobadoPor     Usuario?       @relation("AprobadorAusencia", fields: [aprobadoPorId], references: [id])
+  tipoAusencia    TipoAusencia   @relation(fields: [tipoAusenciaId], references: [id])
+  trabajador      Trabajador     @relation(fields: [trabajadorId], references: [id])
+
+  @@index([archivada])
+  @@map("ausencias")
+}
+
+model Asignacion {
+  id                     Int              @id @default(autoincrement())
+  trabajadorId           Int              @map("trabajador_id")
+  centroId               Int              @map("centro_id")
+  fecha                  DateTime         @db.Date
+  horaInicio             String           @map("hora_inicio")
+  horaFin                String           @map("hora_fin")
+  horasPlanificadas      Decimal          @map("horas_planificadas") @db.Decimal(5, 2)
+  tipoServicio           String?          @map("tipo_servicio")
+  estado                 EstadoAsignacion @default(PROGRAMADO)
+  notas                  String?
+  creadoPorId            Int?             @map("creado_por_id")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+  motivoAtencion         String?          @map("motivo_atencion")
+  requiereAtencion       Boolean          @default(false) @map("requiere_atencion")
+  origen_horario_fijo_id Int?
+  centro                 CentroTrabajo    @relation(fields: [centroId], references: [id])
+  creadoPor              Usuario?         @relation("CreadorAsignacion", fields: [creadoPorId], references: [id])
+  trabajador             Trabajador       @relation(fields: [trabajadorId], references: [id])
+  registroHoras          RegistroHoras?
+
+  @@unique([trabajadorId, centroId, fecha, horaInicio])
+  @@index([centroId, fecha], map: "idx_asignaciones_centro_fecha")
+  @@index([trabajadorId, fecha], map: "idx_asignaciones_trabajador_fecha")
+  @@map("asignaciones")
+}
+
+model RegistroHoras {
+  id              Int         @id @default(autoincrement())
+  asignacionId    Int?        @unique @map("asignacion_id")
+  trabajadorId    Int         @map("trabajador_id")
+  fecha           DateTime    @db.Date
+  horaEntradaReal DateTime?   @map("hora_entrada_real")
+  horaSalidaReal  DateTime?   @map("hora_salida_real")
+  horasNormales   Decimal     @default(0) @map("horas_normales") @db.Decimal(5, 2)
+  horasExtra      Decimal     @default(0) @map("horas_extra") @db.Decimal(5, 2)
+  horasNocturnas  Decimal     @default(0) @map("horas_nocturnas") @db.Decimal(5, 2)
+  horasFestivo    Decimal     @default(0) @map("horas_festivo") @db.Decimal(5, 2)
+  minutosDescanso Int         @default(0) @map("minutos_descanso")
+  validado        Boolean     @default(false)
+  validadoPorId   Int?        @map("validado_por_id")
+  fechaValidacion DateTime?   @map("fecha_validacion")
+  ipFichaje       String?     @map("ip_fichaje")
+  dispositivoId   String?     @map("dispositivo_id")
+  geolatitud      Decimal?    @db.Decimal(10, 8)
+  geolongitud     Decimal?    @db.Decimal(11, 8)
+  notas           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  asignacion      Asignacion? @relation(fields: [asignacionId], references: [id])
+  trabajador      Trabajador  @relation(fields: [trabajadorId], references: [id])
+  validadoPor     Usuario?    @relation("ValidadorRegistro", fields: [validadoPorId], references: [id])
+
+  @@index([trabajadorId, fecha], map: "idx_registro_horas_trabajador_fecha")
+  @@map("registro_horas")
+}
+
+model HistorialCambios {
+  id              Int      @id @default(autoincrement())
+  tablaAfectada   String   @map("tabla_afectada")
+  registroId      Int      @map("registro_id")
+  accion          String
+  datosAnteriores Json?    @map("datos_anteriores")
+  datosNuevos     Json?    @map("datos_nuevos")
+  motivoCambio    String?  @map("motivo_cambio")
+  usuarioId       Int?     @map("usuario_id")
+  ipAddress       String?  @map("ip_address")
+  createdAt       DateTime @default(now()) @map("created_at")
+  tipo_operacion  String   @default("UPDATE") @db.VarChar(20)
+  ip_usuario      String?  @db.VarChar(45)
+  datos_antes     Json?
+  datos_despues   Json?
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([tablaAfectada, registroId, createdAt(sort: Desc)], map: "idx_historial_tabla_registro")
+  @@map("historial_cambios")
+}
+
+model Festivo {
+  id        Int      @id @default(autoincrement())
+  fecha     DateTime @db.Date
+  nombre    String
+  ambito    String
+  anio      Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([fecha, ambito])
+  @@map("festivos")
+}
+
+model Configuracion {
+  id          Int      @id @default(autoincrement())
+  clave       String   @unique
+  valor       String
+  tipo        String
+  descripcion String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model disponibilidad_trabajador {
+  id            Int        @id @default(autoincrement())
+  trabajador_id Int
+  dia_semana    Int
+  hora_inicio   DateTime   @db.Time(6)
+  hora_fin      DateTime   @db.Time(6)
+  activo        Boolean?   @default(true)
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
+  trabajadores  Trabajador @relation(fields: [trabajador_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([trabajador_id, dia_semana, hora_inicio])
+}
+
+model plantillas_turnos {
+  id                        Int                         @id @default(autoincrement())
+  nombre                    String                      @db.VarChar(100)
+  centro_id                 Int?
+  descripcion               String?
+  creado_por_id             Int?
+  created_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  centros_trabajo           CentroTrabajo?              @relation(fields: [centro_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios                  Usuario?                    @relation(fields: [creado_por_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plantillas_turnos_detalle plantillas_turnos_detalle[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plantillas_turnos_detalle {
+  id                Int                @id @default(autoincrement())
+  plantilla_id      Int?
+  trabajador_id     Int?
+  dia_semana        Int?
+  hora_inicio       String             @db.VarChar(10)
+  hora_fin          String             @db.VarChar(10)
+  created_at        DateTime?          @default(now()) @db.Timestamp(6)
+  plantillas_turnos plantillas_turnos? @relation(fields: [plantilla_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trabajadores      Trabajador?        @relation(fields: [trabajador_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model HorarioFijo {
+  id           Int           @id @default(autoincrement())
+  trabajadorId Int           @map("trabajador_id")
+  centroId     Int           @map("centro_id")
+  lunes        Boolean       @default(false)
+  martes       Boolean       @default(false)
+  miercoles    Boolean       @default(false)
+  jueves       Boolean       @default(false)
+  viernes      Boolean       @default(false)
+  sabado       Boolean       @default(false)
+  domingo      Boolean       @default(false)
+  horaInicio   String        @map("hora_inicio")
+  horaFin      String        @map("hora_fin")
+  fechaInicio  DateTime      @default(now()) @map("fecha_inicio") @db.Date
+  fechaFin     DateTime?     @map("fecha_fin") @db.Date
+  activo       Boolean       @default(true)
+  notas        String?
+  creadoPorId  Int?          @map("creado_por_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  centro       CentroTrabajo @relation(fields: [centroId], references: [id], onDelete: Cascade)
+  trabajador   Trabajador    @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+
+  @@index([trabajadorId, activo])
+  @@index([centroId, activo])
+  @@map("horarios_fijos")
+}
+
+enum Rol {
+  ADMIN
+  PLANIFICADOR
+  RRHH
+  TRABAJADOR
+}
+
+enum TipoContrato {
+  INDEFINIDO
+  TEMPORAL
+  OBRA_SERVICIO
+  INTERINIDAD
+  FORMACION
+  ETT
+}
+
+enum EstadoAusencia {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum EstadoAsignacion {
+  PROGRAMADO
+  EN_CURSO
+  COMPLETADO
+  CANCELADO
+  NO_PRESENTADO
+}
