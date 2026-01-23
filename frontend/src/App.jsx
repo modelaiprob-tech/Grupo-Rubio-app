@@ -7,7 +7,7 @@ import GenerarAsignacionesAutomaticas from './pages/GenerarAsignacionesAutomatic
 import { useAusencias } from './hooks/useAusencias';
 
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://grupo-rubio-app-production.up.railway.app/api';
+const API_URL = 'https://grupo-rubio-app-production.up.railway.app/api';
 
 // Hook para llamadas a la API
 function useApi() {
