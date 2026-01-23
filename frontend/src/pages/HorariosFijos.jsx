@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://grupo-rubio-app-production.up.railway.app';
 
 const HorariosFijos = ({ trabajadorId }) => {
   const [horarios, setHorarios] = useState([]);
