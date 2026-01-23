@@ -7,7 +7,8 @@ import GenerarAsignacionesAutomaticas from './pages/GenerarAsignacionesAutomatic
 import { useAusencias } from './hooks/useAusencias';
 
 
-const API_URL = 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 // Hook para llamadas a la API
 function useApi() {
   const [token, setToken] = useState(localStorage.getItem('token'))
