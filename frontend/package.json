@@ -2,8 +2,8 @@
   "name": "grupo-rubio-frontend",
   "version": "1.0.0",
   "scripts": {
-  "start": "npx prisma db push && node src/server.js",
-  "build": "npx prisma generate"
+  "start": "node src/server.js",
+  "build": "npx prisma generate && npx prisma db push --accept-data-loss"
 },
   "dependencies": {
     "axios": "^1.13.2",
