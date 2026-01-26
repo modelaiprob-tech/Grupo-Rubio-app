@@ -82,6 +82,13 @@ const authMiddleware = async (req, res, next) => {
     return res.status(401).json({ error: 'Token inválido' });
   }
 };
+// Middleware solo para administradores
+const adminOnly = (req, res, next) => {
+  if (req.user.rol !== 'ADMIN') {
+    return res.status(403).json({ error: 'Acceso denegado - Solo administradores' });
+  }
+  next();
+};
 
 // ============================================
 // RUTAS: AUTENTICACIÓN
@@ -132,6 +139,137 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   });
 });
 
+// ============================================
+// RUTAS: GESTIÓN DE USUARIOS (Solo Admin)
+// ============================================
+
+// Listar todos los usuarios
+app.get('/api/usuarios', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const usuarios = await prisma.usuario.findMany({
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        activo: true,
+        ultimoAcceso: true,
+        createdAt: true
+      },
+      orderBy: { nombre: 'asc' }
+    });
+    res.json(usuarios);
+  } catch (error) {
+    console.error('Error listando usuarios:', error);
+    res.status(500).json({ error: 'Error listando usuarios' });
+  }
+});
+
+// Crear usuario
+app.post('/api/usuarios', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { email, password, nombre, rol } = req.body;
+    
+    // Validar
+    if (!email || !password || !nombre || !rol) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    }
+
+    // Verificar que no existe
+    const existe = await prisma.usuario.findUnique({ where: { email } });
+    if (existe) {
+      return res.status(400).json({ error: 'El email ya está registrado' });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Crear
+    const usuario = await prisma.usuario.create({
+      data: {
+        email,
+        passwordHash,
+        nombre,
+        rol,
+        activo: true
+      },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        activo: true,
+        createdAt: true
+      }
+    });
+
+    res.status(201).json(usuario);
+  } catch (error) {
+    console.error('Error creando usuario:', error);
+    res.status(500).json({ error: 'Error creando usuario' });
+  }
+});
+
+// Actualizar usuario
+app.put('/api/usuarios/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, nombre, rol, activo, password } = req.body;
+
+    const data = { email, nombre, rol, activo };
+
+    // Si se envía password, hashearlo
+    if (password) {
+      data.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const usuario = await prisma.usuario.update({
+      where: { id: parseInt(id) },
+      data,
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        activo: true,
+        updatedAt: true
+      }
+    });
+
+    res.json(usuario);
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+    res.status(500).json({ error: 'Error actualizando usuario' });
+  }
+});
+
+// Desactivar usuario
+app.put('/api/usuarios/:id/toggle-activo', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const usuarioActual = await prisma.usuario.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    const usuario = await prisma.usuario.update({
+      where: { id: parseInt(id) },
+      data: { activo: !usuarioActual.activo },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        activo: true
+      }
+    });
+
+    res.json(usuario);
+  } catch (error) {
+    console.error('Error cambiando estado usuario:', error);
+    res.status(500).json({ error: 'Error cambiando estado usuario' });
+  }
+});
 // ============================================
 // RUTAS: DASHBOARD
 // ============================================
