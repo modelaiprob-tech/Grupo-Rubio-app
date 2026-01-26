@@ -147,7 +147,7 @@ if (!pasaPorMedianoche && horaFin <= horaInicio) {
   });
 }
 
-// ✅ VALIDAR HORARIO DEL CENTRO
+// ✅ VALIDAR HORARIO DEL CENTRO (con soporte para turnos nocturnos)
 if (centro.horarioApertura && centro.horarioCierre) {
   const [hAperturaH, hAperturaM] = centro.horarioApertura.split(':').map(Number);
   const [hCierreH, hCierreM] = centro.horarioCierre.split(':').map(Number);
@@ -155,18 +155,56 @@ if (centro.horarioApertura && centro.horarioCierre) {
   const [hFinH, hFinM] = horaFin.split(':').map(Number);
   
   const minApertura = hAperturaH * 60 + hAperturaM;
-  const minCierre = hCierreH * 60 + hCierreM;
+  let minCierre = hCierreH * 60 + hCierreM;
   const minInicio = hInicioH * 60 + hInicioM;
-  const minFin = hFinH * 60 + hFinM;
+  let minFin = hFinH * 60 + hFinM;
   
-  // Permitir cierre a medianoche (00:00 = 1440 minutos)
-  const minCierreAjustado = minCierre === 0 ? 1440 : minCierre;
-  const minFinAjustado = minFin === 0 ? 1440 : minFin;
+  // Detectar turno nocturno del centro (cierre < apertura, ej: 18:00-06:00)
+  const centroEsNocturno = minCierre < minApertura;
+  if (centroEsNocturno) {
+    minCierre += 1440; // Añadir 24h al cierre
+  }
   
-  if (minInicio < minApertura || minFinAjustado > minCierreAjustado) {
+  // Detectar turno nocturno del trabajador (fin < inicio, ej: 22:00-06:00)
+  const turnoEsNocturno = minFin < minInicio;
+  if (turnoEsNocturno) {
+    minFin += 1440; // Añadir 24h al fin
+  }
+  
+  // Validar que el turno esté dentro del horario del centro
+  // Caso 1: Centro y turno ambos nocturnos
+  if (centroEsNocturno && turnoEsNocturno) {
+    if (minInicio < minApertura || minFin > minCierre) {
+      return res.status(400).json({ 
+        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
+      });
+    }
+  }
+  // Caso 2: Centro nocturno, turno diurno
+  else if (centroEsNocturno && !turnoEsNocturno) {
+    // El turno debe empezar después de la apertura O terminar antes del cierre ajustado
+    const dentroDePrimeraParte = minInicio >= minApertura && minFin <= 1440;
+    const dentroDeSegundaParte = minInicio >= 0 && minFin <= (minCierre - 1440);
+    
+    if (!dentroDePrimeraParte && !dentroDeSegundaParte) {
+      return res.status(400).json({ 
+        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
+      });
+    }
+  }
+  // Caso 3: Centro diurno, turno nocturno
+  else if (!centroEsNocturno && turnoEsNocturno) {
     return res.status(400).json({ 
-      error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
+      error: `No se puede asignar un turno nocturno (${horaInicio}-${horaFin}) a un centro con horario diurno (${centro.horarioApertura}-${centro.horarioCierre})`
     });
+  }
+  // Caso 4: Ambos diurnos (validación normal)
+  else {
+    if (minInicio < minApertura || minFin > minCierre) {
+      return res.status(400).json({ 
+        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
+      });
+    }
   }
 }
 
@@ -461,113 +499,137 @@ router.post('/generar-asignaciones', async (req, res) => {
 
     console.log(`📆 Total de días a procesar: ${fechas.length}`);
 
-    const asignacionesCreadas = [];
-    const asignacionesConflicto = [];
-
-    // Mapeo de días
-    const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-
-    // Procesar cada fecha
-    for (const fecha of fechas) {
-      const diaSemana = diasSemana[fecha.getDay()];
-
-      // Procesar cada horario fijo
-      // Procesar cada horario fijo
-for (const horario of horariosVigentes) {
-  // Verificar si el horario aplica para este día
-  if (!horario[diaSemana]) {
-    continue;
-  }
-
-  // Verificar si ya existe una asignación
-  const asignacionExistente = await prisma.asignacion.findFirst({
+    // ✅ PASO 1: Si sobrescribir=true, eliminar asignaciones previas generadas por horarios fijos
+if (sobrescribir) {
+  console.log('🗑️ Eliminando asignaciones previas generadas por horarios fijos...');
+  
+  // Obtener asignaciones a eliminar
+  const asignacionesAEliminar = await prisma.asignacion.findMany({
     where: {
-      trabajadorId: horario.trabajadorId,
-      centroId: horario.centroId,
-      fecha: fecha,
-      estado: { not: 'CANCELADO' }
-    }
-  });
-
-  if (asignacionExistente && !sobrescribir) {
-    console.log(`⚠️  Ya existe asignación para ${horario.trabajador.nombre} en ${fecha.toLocaleDateString()}`);
-    continue;
-  }
-
-  // Verificar ausencias del trabajador ese día
-  const tieneAusencia = await prisma.ausencia.findFirst({
-    where: {
-      trabajadorId: horario.trabajadorId,
-      estado: 'APROBADA',
-      fechaInicio: { lte: fecha },
-      fechaFin: { gte: fecha }
+      fecha: { gte: inicio, lte: fin },
+      estado: 'PROGRAMADO',
+      origen_horario_fijo_id: { not: null } // Solo las generadas automáticamente
     },
-    include: {
-      tipoAusencia: true
-    }
+    select: { id: true }
   });
 
-  const requiereAtencion = !!tieneAusencia;
-  const motivoAtencion = tieneAusencia 
-    ? `Trabajador con ${tieneAusencia.tipoAusencia.nombre.toLowerCase()} del ${tieneAusencia.fechaInicio.toLocaleDateString()} al ${tieneAusencia.fechaFin.toLocaleDateString()}`
-    : null;
+  const idsEliminar = asignacionesAEliminar.map(a => a.id);
 
-  try {
-    // Calcular horas planificadas
-    const [horaInicioH, horaInicioM] = horario.horaInicio.split(':').map(Number);
-    const [horaFinH, horaFinM] = horario.horaFin.split(':').map(Number);
-    const horasPlanificadas = ((horaFinH * 60 + horaFinM) - (horaInicioH * 60 + horaInicioM)) / 60;
+  if (idsEliminar.length > 0) {
+    // Eliminar registros de horas asociados
+    await prisma.registroHoras.deleteMany({
+      where: { asignacionId: { in: idsEliminar } }
+    });
 
-    // Calcular horas acumuladas de la semana
-    const horasAcumuladas = await obtenerHorasSemanales(horario.trabajadorId, fecha);
+    // Eliminar asignaciones
+    await prisma.asignacion.deleteMany({
+      where: { id: { in: idsEliminar } }
+    });
 
-    // Crear o actualizar asignación
-    const asignacion = await prisma.asignacion.upsert({
+    console.log(`✅ Eliminadas ${idsEliminar.length} asignaciones antiguas`);
+  }
+}
+
+// ✅ PASO 2: Generar nuevas asignaciones
+const asignacionesCreadas = [];
+const asignacionesConflicto = [];
+const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+// Procesar cada fecha
+for (const fecha of fechas) {
+  const diaSemana = diasSemana[fecha.getDay()];
+
+  // Procesar cada horario fijo
+  for (const horario of horariosVigentes) {
+    // Verificar si el horario aplica para este día
+    if (!horario[diaSemana]) continue;
+
+    // Verificar si ya existe una asignación (manual o de otro origen)
+    const asignacionExistente = await prisma.asignacion.findFirst({
       where: {
-        trabajadorId_centroId_fecha_horaInicio: {
-          trabajadorId: horario.trabajadorId,
-          centroId: horario.centroId,
-          fecha: fecha,
-          horaInicio: horario.horaInicio
-        }
-      },
-      create: {
         trabajadorId: horario.trabajadorId,
         centroId: horario.centroId,
         fecha: fecha,
-        horaInicio: horario.horaInicio,
-        horaFin: horario.horaFin,
-        horasPlanificadas: horasPlanificadas,
-        estado: 'PROGRAMADO',
-        requiereAtencion,
-        motivoAtencion,
-        origen_horario_fijo_id: horario.id
-      },
-      update: sobrescribir ? {
-        horaInicio: horario.horaInicio,
-        horaFin: horario.horaFin,
-        horasPlanificadas: horasPlanificadas,
-        requiereAtencion,
-        motivoAtencion,
-        origen_horario_fijo_id: horario.id
-      } : {}
+        estado: { not: 'CANCELADO' }
+      }
     });
 
-    // Calcular desglose de horas
-    const detalleHoras = await calcularDetalleHoras(
-      asignacion, 
-      horario.trabajador, 
-      horasAcumuladas
-    );
+    // Si existe y NO es del mismo horario fijo, respetarla (es manual)
+    if (asignacionExistente && asignacionExistente.origen_horario_fijo_id !== horario.id && !sobrescribir) {
+      console.log(`⚠️ Respetando asignación manual para ${horario.trabajador.nombre} en ${fecha.toLocaleDateString()}`);
+      continue;
+    }
 
-    // Crear o actualizar registro de horas
-    const registroExistente = await prisma.registroHoras.findFirst({
-      where: { asignacionId: asignacion.id }
-    });
+    // Verificar ausencias (con filtro en JS para fechaFin null)
+const todasAusencias = await prisma.ausencia.findMany({
+  where: {
+    trabajadorId: horario.trabajadorId,
+    estado: 'APROBADA',
+    fechaInicio: { lte: fecha }
+  },
+  include: { tipoAusencia: true }
+});
 
-    if (!registroExistente) {
-      await prisma.registroHoras.create({
-        data: {
+const tieneAusencia = todasAusencias.find(a => {
+  if (!a.fechaFin) return true; // Sin fecha fin = activa
+  return new Date(a.fechaFin) >= fecha;
+});
+
+    const requiereAtencion = !!tieneAusencia;
+    const motivoAtencion = tieneAusencia
+      ? `Trabajador con ${tieneAusencia.tipoAusencia.nombre.toLowerCase()}`
+      : null;
+
+    try {
+      // Calcular horas
+      const [horaInicioH, horaInicioM] = horario.horaInicio.split(':').map(Number);
+      const [horaFinH, horaFinM] = horario.horaFin.split(':').map(Number);
+      let horasPlanificadas = ((horaFinH * 60 + horaFinM) - (horaInicioH * 60 + horaInicioM)) / 60;
+      if (horasPlanificadas < 0) horasPlanificadas += 24;
+
+      const horasAcumuladas = await obtenerHorasSemanales(horario.trabajadorId, fecha);
+
+      // Crear o actualizar asignación
+      const asignacion = await prisma.asignacion.upsert({
+        where: {
+          trabajadorId_centroId_fecha_horaInicio: {
+            trabajadorId: horario.trabajadorId,
+            centroId: horario.centroId,
+            fecha: fecha,
+            horaInicio: horario.horaInicio
+          }
+        },
+        create: {
+          trabajadorId: horario.trabajadorId,
+          centroId: horario.centroId,
+          fecha: fecha,
+          horaInicio: horario.horaInicio,
+          horaFin: horario.horaFin,
+          horasPlanificadas: horasPlanificadas,
+          estado: 'PROGRAMADO',
+          requiereAtencion,
+          motivoAtencion,
+          origen_horario_fijo_id: horario.id
+        },
+        update: {
+          horaInicio: horario.horaInicio,
+          horaFin: horario.horaFin,
+          horasPlanificadas: horasPlanificadas,
+          requiereAtencion,
+          motivoAtencion,
+          origen_horario_fijo_id: horario.id
+        }
+      });
+
+      // Calcular desglose
+      const detalleHoras = await calcularDetalleHoras(asignacion, horario.trabajador, horasAcumuladas);
+
+      // Crear/actualizar registro de horas
+      await prisma.registroHoras.upsert({
+        where: {
+          asignacionId: asignacion.id
+        },
+        create: {
           asignacionId: asignacion.id,
           trabajadorId: horario.trabajadorId,
           fecha: fecha,
@@ -576,38 +638,41 @@ for (const horario of horariosVigentes) {
           horasNocturnas: detalleHoras.horasNocturnas,
           horasFestivo: detalleHoras.horasFestivo,
           validado: true
+        },
+        update: {
+          horasNormales: detalleHoras.horasNormales,
+          horasExtra: detalleHoras.horasExtra,
+          horasNocturnas: detalleHoras.horasNocturnas,
+          horasFestivo: detalleHoras.horasFestivo
         }
       });
-    }
 
-    // Actualizar requiereAtencion si hay horas extras
-    if (detalleHoras.excedioContrato && !requiereAtencion) {
-      await prisma.asignacion.update({
-        where: { id: asignacion.id },
-        data: {
-          requiereAtencion: true,
-          motivoAtencion: `Supera contrato (${detalleHoras.horasContrato}h/sem). Extras: ${detalleHoras.horasExtra}h`
-        }
-      });
-    }
+      // Actualizar si hay extras
+      if (detalleHoras.excedioContrato && !requiereAtencion) {
+        await prisma.asignacion.update({
+          where: { id: asignacion.id },
+          data: {
+            requiereAtencion: true,
+            motivoAtencion: `Supera contrato: ${detalleHoras.horasExtra}h extras`
+          }
+        });
+      }
 
-    asignacionesCreadas.push(asignacion);
+      asignacionesCreadas.push(asignacion);
 
-    if (requiereAtencion || detalleHoras.excedioContrato) {
-      asignacionesConflicto.push({
-        fecha: fecha,
-        trabajador: `${horario.trabajador.nombre} ${horario.trabajador.apellidos}`,
-        centro: horario.centro.nombre,
-        motivo: motivoAtencion || `Horas extras: ${detalleHoras.horasExtra}h`
-      });
+      if (requiereAtencion || detalleHoras.excedioContrato) {
+        asignacionesConflicto.push({
+          fecha: fecha,
+          trabajador: `${horario.trabajador.nombre} ${horario.trabajador.apellidos}`,
+          centro: horario.centro.nombre,
+          motivo: motivoAtencion || `Horas extras: ${detalleHoras.horasExtra}h`
+        });
+      }
+    } catch (error) {
+      console.error(`Error al crear asignación:`, error);
     }
-  } catch (error) {
-    console.error(`Error al crear asignación:`, error);
   }
-} // ← Cierre del for de horarios
-} // ← Cierre del for de fechas
-
-console.log(`✅ Asignaciones creadas: ${asignacionesCreadas.length}`);
+}
 console.log(`⚠️  Asignaciones con conflicto: ${asignacionesConflicto.length}`);
 
 // 🔥 RECALCULAR TODAS LAS SEMANAS AFECTADAS

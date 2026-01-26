@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Informes.css';
+import InformeNominaDetallada from './InformeNominaDetallada';
 
 function Informes({ api }) {
 const [tipoInforme, setTipoInforme] = useState(null);
@@ -162,20 +163,22 @@ return (
           </p>
         </button>
 
-        {/* TARJETA 4: Análisis de Ausencias */}
+      
+
+        {/* TARJETA 5: Nómina Detallada */}
         <button
-          onClick={() => setTipoInforme('resumen-ausencias')}
-          className="bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
+          onClick={() => setTipoInforme('nomina-detallada')}
+          className="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
         >
-          <div className="flex items-start justify-between mb-4">
-           
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Análisis de Ausencias</h2>
-          <p className="text-orange-100 text-sm">
-            Estadísticas completas de bajas, vacaciones y permisos por trabajador y tipo
+          <h2 className="text-2xl font-bold mb-2"> Nómina Detallada</h2>
+          <p className="text-indigo-100 text-sm">
+            Desglose día a día de horas normales, nocturnas, festivas, extras y cálculo exacto de nómina bruta
           </p>
         </button>
-        {/* TARJETA 5: Calendario Empresa */}
+
+
+
+        {/* TARJETA 6: Calendario Empresa */}
 <button
   onClick={() => setTipoInforme('calendario-empresa')}
   className="bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
@@ -383,18 +386,20 @@ return (
 
             {/* Botón de acción */}
             <div className="flex gap-3 pt-4">
-              <button
-                onClick={generarInforme}
-                disabled={loading}
-                className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-                  tipoInforme === 'estado-trabajadores' ? 'bg-blue-500 hover:bg-blue-600' :
-                  tipoInforme === 'horas-trabajador' ? 'bg-green-500 hover:bg-green-600' :
-                  tipoInforme === 'horas-cliente' ? 'bg-purple-500 hover:bg-purple-600' :
-                  'bg-orange-500 hover:bg-orange-600'
-                } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {loading ? '⏳ Generando...' : ' Generar Informe'}
-              </button>
+              {tipoInforme !== 'nomina-detallada' && (
+  <button
+    onClick={generarInforme}
+    disabled={loading}
+    className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
+      tipoInforme === 'estado-trabajadores' ? 'bg-blue-500 hover:bg-blue-600' :
+      tipoInforme === 'horas-trabajador' ? 'bg-green-500 hover:bg-green-600' :
+      tipoInforme === 'horas-cliente' ? 'bg-purple-500 hover:bg-purple-600' :
+      'bg-orange-500 hover:bg-orange-600'
+    } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+  >
+    {loading ? '⏳ Generando...' : ' Generar Informe'}
+  </button>
+)}
             </div>
           </div>
         </div>
@@ -407,31 +412,29 @@ return (
           </div>
         )}
 
-        {datos && !loading && (
+        {/* NÓMINA DETALLADA - Renderizado independiente */}
+        {tipoInforme === 'nomina-detallada' && (
+          <InformeNominaDetallada api={api} />
+        )}
+
+        {/* RESTO DE INFORMES - Requieren generar datos */}
+        {datos && !loading && tipoInforme !== 'nomina-detallada' && (
           <div className="resultados-informe">
-            {/* INFORME 1: Estado Trabajadores */}
             {tipoInforme === 'estado-trabajadores' && (
               <InformeEstadoTrabajadores datos={datos} />
             )}
-
-            {/* INFORME 2: Horas Trabajador */}
             {tipoInforme === 'horas-trabajador' && (
               <InformeHorasTrabajador datos={datos} />
             )}
-
-            {/* INFORME 3: Horas Cliente */}
             {tipoInforme === 'horas-cliente' && (
               <InformeHorasCliente datos={datos} />
             )}
-
-            {/* INFORME 4: Ausencias */}
             {tipoInforme === 'resumen-ausencias' && (
               <InformeAusencias datos={datos} />
             )}
-            {/* INFORME 5: Calendario Empresa ← ¿ESTÁ ESTA LÍNEA? */}
-    {tipoInforme === 'calendario-empresa' && (
-      <InformeCalendarioEmpresa datos={datos} />
-    )}
+            {tipoInforme === 'calendario-empresa' && (
+              <InformeCalendarioEmpresa datos={datos} />
+            )}
           </div>
         )}
       </div>
@@ -823,8 +826,8 @@ function InformeCalendarioEmpresa({ datos }) {
                     >
                       <div className="font-bold text-sm">{dia?.codigo || '-'}</div>
                       {dia?.horario && (
-                        <div className="text-xs mt-1">{dia.horario}</div>
-                      )}
+  <div className="text-xs mt-1 whitespace-pre-line">{dia.horario}</div>
+)}
                     </td>
                   );
                 })}

@@ -6,10 +6,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const API_URL = 'https://grupo-rubio-app-production.up.railway.app';
-
-const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas }) => {
-  const [showModal, setShowModal] = useState(false);
+const API_URL = 'http://localhost:3001/api';
+const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas, api }) => {  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
   
@@ -75,22 +73,22 @@ const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas }) => {
     }
 
     try {
-      setLoading(true);
-      setResultado(null);
+  setLoading(true);
+  setResultado(null);
 
-      const response = await axios.post(`${API_URL}/api/horarios-fijos/generar-asignaciones`, {
-        fechaInicio: fechas.inicio.toISOString().split('T')[0],
-        fechaFin: fechas.fin.toISOString().split('T')[0],
-        sobrescribir: formData.sobrescribir,
-        soloActivos: formData.soloActivos
-      });
+  const response = await api.post('/horarios-fijos/generar-asignaciones', {
+    fechaInicio: fechas.inicio.toISOString().split('T')[0],
+    fechaFin: fechas.fin.toISOString().split('T')[0],
+    sobrescribir: formData.sobrescribir,
+    soloActivos: formData.soloActivos
+  });
 
-      setResultado(response.data);
-      
-      // Notificar al componente padre que recargue las asignaciones
-      if (onAsignacionesGeneradas) {
-        onAsignacionesGeneradas();
-      }
+  setResultado(response);
+  
+  // Notificar al componente padre que recargue las asignaciones
+  if (onAsignacionesGeneradas) {
+    onAsignacionesGeneradas();
+  }
 
     } catch (error) {
       console.error('Error al generar asignaciones:', error);

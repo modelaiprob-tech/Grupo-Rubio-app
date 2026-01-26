@@ -19,6 +19,7 @@ model Usuario {
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
   asignacionesCreadas Asignacion[]        @relation("CreadorAsignacion")
+  asignacionesEditadas Asignacion[]       @relation("EditorAsignacion")
   ausenciasAprobadas  Ausencia[]          @relation("AprobadorAusencia")
   historialCambios    HistorialCambios[]
   plantillas_turnos   plantillas_turnos[]
@@ -29,16 +30,26 @@ model Usuario {
 }
 
 model Categoria {
-  id           Int          @id @default(autoincrement())
-  codigo       String       @unique
-  nombre       String
-  descripcion  String?
-  salarioBase  Decimal      @map("salario_base") @db.Decimal(10, 2)
-  plusConvenio Decimal      @map("plus_convenio") @db.Decimal(10, 2)
-  precioHora   Decimal      @map("precio_hora") @db.Decimal(10, 2)
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  trabajadores Trabajador[]
+  id                    Int          @id @default(autoincrement())
+  codigo                String       @unique
+  nombre                String
+  descripcion           String?
+  salarioBase           Decimal      @map("salario_base") @db.Decimal(10, 2)
+  plusConvenio          Decimal      @map("plus_convenio") @db.Decimal(10, 2)
+  precioHora            Decimal      @map("precio_hora") @db.Decimal(10, 2)
+  
+  // NUEVOS CAMPOS
+  recargoNocturno       Decimal      @default(25) @map("recargo_nocturno") @db.Decimal(5, 2)     // % recargo (ej: 25 = 25%)
+  recargoFestivo        Decimal      @default(75) @map("recargo_festivo") @db.Decimal(5, 2)      // % recargo
+  recargoExtra          Decimal      @default(75) @map("recargo_extra") @db.Decimal(5, 2)         // % recargo primera hora extra
+  recargoExtraAdicional Decimal      @default(100) @map("recargo_extra_adicional") @db.Decimal(5, 2) // % recargo horas extras siguientes
+  plusTransporte        Decimal      @default(0) @map("plus_transporte") @db.Decimal(10, 2)      // € fijo mensual
+  plusPeligrosidad      Decimal      @default(0) @map("plus_peligrosidad") @db.Decimal(10, 2)    // € fijo mensual
+  activo                Boolean      @default(true)
+  
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+  trabajadores          Trabajador[]
 
   @@map("categorias")
 }
@@ -77,7 +88,7 @@ model Trabajador {
   centrosAsignados          TrabajadorCentro[]
   categoria                 Categoria                   @relation(fields: [categoriaId], references: [id])
   usuario                   Usuario?
-
+  acuerdosIndividuales  AcuerdoIndividual[]
   @@map("trabajadores")
 }
 
@@ -131,7 +142,8 @@ model CentroTrabajo {
   horariosFijos           HorarioFijo[]
   plantillas_turnos       plantillas_turnos[]
   trabajadoresAsignados   TrabajadorCentro[]
-
+  acuerdosIndividuales  AcuerdoIndividual[]
+  
   @@map("centros_trabajo")
 }
 
@@ -157,11 +169,33 @@ model TipoAusencia {
   restaVacaciones      Boolean    @default(false) @map("resta_vacaciones")
   restaAsuntos         Boolean    @default(false) @map("resta_asuntos")
   pagada               Boolean    @default(true)
-  colorHex             String     @default("#6B7280") @map("color_hex")
+  
+  // CÁLCULO ECONÓMICO
+  porcentajeCobro      Decimal    @default(100) @map("porcentaje_cobro") @db.Decimal(5, 2)
+  usaTramos            Boolean    @default(false) @map("usa_tramos")  // ¿Usa % escalonado por días?
+  tramosJson           String?    @map("tramos_json")  // JSON con tramos si usaTramos=true
+  baseCalculo          String     @default("SALARIO_BASE") @map("base_calculo")  // SALARIO_BASE | SALARIO_TOTAL | SALARIO_REGULADOR
+  diasCarencia         Int        @default(0) @map("dias_carencia")  // Días sin cobro al inicio
+  topeDiarioEuros      Decimal?   @map("tope_diario_euros") @db.Decimal(10, 2)  // Límite diario si aplica
+  
+  // QUIÉN PAGA (informativo)
+  pagador              String     @default("EMPRESA") @map("pagador")  // EMPRESA | MUTUA | SEGURIDAD_SOCIAL | MIXTO
+  
+  // CÓMPUTO DE DÍAS
+  incluyeDomingos      Boolean    @default(true) @map("incluye_domingos")
+  incluyeFestivos      Boolean    @default(true) @map("incluye_festivos")
   diasMaximo           Int?       @map("dias_maximo")
+  
+  // DOCUMENTACIÓN
   requiereJustificante Boolean    @default(false) @map("requiere_justificante")
+  tipoJustificante     String     @default("MEDICO") @map("tipo_justificante")  // MEDICO | ADMINISTRATIVO | NINGUNO
+  requiereAltaMedica   Boolean    @default(false) @map("requiere_alta_medica")
+  
+  // METADATA
+  colorHex             String     @default("#6B7280") @map("color_hex")
   activo               Boolean    @default(true)
   createdAt            DateTime   @default(now()) @map("created_at")
+  
   ausencias            Ausencia[]
 
   @@map("tipos_ausencia")
@@ -217,6 +251,13 @@ model Asignacion {
   creadoPor              Usuario?         @relation("CreadorAsignacion", fields: [creadoPorId], references: [id])
   trabajador             Trabajador       @relation(fields: [trabajadorId], references: [id])
   registroHoras          RegistroHoras?
+  // AÑADIR ESTOS 3 CAMPOS:
+  origen        String    @default("PLANIFICACION")  // "PLANIFICACION" o "MANUAL"
+  editadoPorId  Int?      @map("editado_por_id")     // Quién hizo ajuste manual
+  fechaEdicion  DateTime? @map("fecha_edicion")      // Cuándo se editó
+  
+  // AÑADIR ESTA RELACIÓN (diferente de creadoPor):
+  editadoPor    Usuario?  @relation("EditorAsignacion", fields: [editadoPorId], references: [id])
 
   @@unique([trabajadorId, centroId, fecha, horaInicio])
   @@index([centroId, fecha], map: "idx_asignaciones_centro_fecha")
@@ -365,6 +406,26 @@ model HorarioFijo {
   @@index([trabajadorId, activo])
   @@index([centroId, activo])
   @@map("horarios_fijos")
+}
+
+model AcuerdoIndividual {
+  id             Int        @id @default(autoincrement())
+  trabajadorId   Int        @map("trabajador_id")
+  tipoAcuerdo    String     @map("tipo_acuerdo")  // "PRECIO_HORA", "PLUS_MENSUAL", "SALARIO_BASE"
+  valor          Decimal    @db.Decimal(10, 2)    // El valor del acuerdo (€)
+  centroId       Int?       @map("centro_id")     // NULL = aplica a todos los centros
+  descripcion    String?                          // Motivo del acuerdo
+  fechaInicio    DateTime   @default(now()) @map("fecha_inicio") @db.Date
+  fechaFin       DateTime?  @map("fecha_fin") @db.Date
+  activo         Boolean    @default(true)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  
+  trabajador     Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  centro         CentroTrabajo? @relation(fields: [centroId], references: [id], onDelete: SetNull)
+
+  @@index([trabajadorId, activo])
+  @@map("acuerdos_individuales")
 }
 
 enum Rol {

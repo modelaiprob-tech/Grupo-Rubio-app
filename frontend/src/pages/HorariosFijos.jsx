@@ -6,8 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'https://grupo-rubio-app-production.up.railway.app';
-
+const API_URL = 'http://localhost:3001/api';
 const HorariosFijos = ({ trabajadorId }) => {
   const [horarios, setHorarios] = useState([]);
   const [centros, setCentros] = useState([]);
@@ -49,7 +48,7 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
   const cargarHorarios = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/horarios-fijos/trabajador/${trabajadorId}`);
+      const response = await axios.get(`${API_URL}/horarios-fijos/trabajador/${trabajadorId}`);
       setHorarios(response.data);
     } catch (error) {
       console.error('Error al cargar horarios:', error);
@@ -62,7 +61,7 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
   const cargarCentros = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/api/centros`, {
+    const response = await axios.get(`${API_URL}/centros`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -136,11 +135,11 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
       
       if (editando) {
         // Actualizar
-        await axios.put(`${API_URL}/api/horarios-fijos/${editando}`, formData);
+        await axios.put(`${API_URL}/horarios-fijos/${editando}`, formData);
         alert('Horario actualizado correctamente');
       } else {
         // Crear
-        await axios.post(`${API_URL}/api/horarios-fijos`, {
+        await axios.post(`${API_URL}/horarios-fijos`, {
           ...formData,
           trabajadorId: parseInt(trabajadorId)
         });
@@ -167,7 +166,7 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
 
   try {
     setLoading(true);
-    await axios.delete(`${API_URL}/api/horarios-fijos/${id}`, {
+    await axios.delete(`${API_URL}/horarios-fijos/${id}`, {
       data: { eliminarAsignacionesFuturas: true } // ← AÑADIR
     });
     alert('Horario desactivado y asignaciones futuras eliminadas');

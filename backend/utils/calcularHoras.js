@@ -37,7 +37,7 @@ function calcularHorasNocturnas(horaInicio, horaFin) {
   let minActual = inicioM;
   
   while (horaActual !== finH || minActual !== finM) {
-    if (horaActual >= 23 || horaActual < 6) {
+    if (horaActual >= 22 || horaActual < 6) {
       minutosNocturnos++;
     }
     

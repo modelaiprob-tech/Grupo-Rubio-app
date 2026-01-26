@@ -126,29 +126,43 @@ const tipoAusencia = ausencia.tipoAusencia?.nombre?.toLowerCase() || '';
             color: ausencia.estado === 'PENDIENTE' ? 'amarillo' : 'rojo'
           };
         } else {
-          // Verificar si trabaja ese día
-          const trabaja = asignaciones.find(a =>
-            a.trabajadorId === trabajador.id &&
-            a.fecha.toISOString().split('T')[0] === fechaStr
-          );
+  // Verificar si trabaja ese día (pueden ser varias asignaciones = jornada partida)
+  const asignacionesDia = asignaciones.filter(a =>
+    a.trabajadorId === trabajador.id &&
+    a.fecha.toISOString().split('T')[0] === fechaStr
+  );
+  // ✅ ORDENAR por hora de inicio
+asignacionesDia.sort((a, b) => {
+  const horaA = a.horaInicio.split(':').map(Number);
+  const horaB = b.horaInicio.split(':').map(Number);
+  return (horaA[0] * 60 + horaA[1]) - (horaB[0] * 60 + horaB[1]);
+});
 
-          if (trabaja) {
-            fila.dias[fechaStr] = {
-              codigo: 'X',
-              estado: 'TRABAJA',
-              centro: trabaja.centro.nombre,
-              horario: `${trabaja.horaInicio}-${trabaja.horaFin}`,
-              color: 'verde'
-            };
-          } else {
-            // No trabaja, no tiene ausencia
-            fila.dias[fechaStr] = {
-              codigo: '-',
-              estado: 'LIBRE',
-              color: 'gris'
-            };
-          }
-        }
+
+  if (asignacionesDia.length > 0) {
+    // Combinar todos los horarios
+    const horarios = asignacionesDia
+      .map(a => `${a.horaInicio}-${a.horaFin}`)
+      .join('\n');
+    
+    const centros = [...new Set(asignacionesDia.map(a => a.centro.nombre))].join(', ');
+
+    fila.dias[fechaStr] = {
+      codigo: 'X',
+      estado: 'TRABAJA',
+      centro: centros,
+      horario: horarios,
+      color: 'verde'
+    };
+  } else {
+    // No trabaja, no tiene ausencia
+    fila.dias[fechaStr] = {
+      codigo: '-',
+      estado: 'LIBRE',
+      color: 'gris'
+    };
+  }
+}
       });
 
       return fila;
