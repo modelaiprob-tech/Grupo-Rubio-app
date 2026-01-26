@@ -148,20 +148,19 @@ case 'ajustes':  // 👈 AÑADE ESTAS 2 LÍNEAS
 
 
     return (
-      <div className="flex h-screen bg-slate-100">
-       <Sidebar 
-  currentPage={currentPage} 
-  setCurrentPage={setCurrentPage} 
-  user={user} 
-  onLogout={onLogout} 
-/>
+      <div className="flex h-screen bg-slate-100 overflow-hidden">
+  <Sidebar 
+    currentPage={currentPage} 
+    setCurrentPage={setCurrentPage} 
+    user={user} 
+    onLogout={onLogout} 
+  />
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          {renderPage()}
-
-        </main>
-      </div>
+  {/* Main Content con padding para móvil */}
+  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+    {renderPage()}
+  </main>
+</div>
     )
   }
 

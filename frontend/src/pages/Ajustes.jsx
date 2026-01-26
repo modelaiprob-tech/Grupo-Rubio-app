@@ -211,5 +211,65 @@ export default function Ajustes() {
         </tbody>
       </table>
     </div>
-  );
+);
 }
+    {/* Vista Móvil */}
+<div className="md:hidden space-y-4">
+  {usuarios.map(usuario => (
+    <div key={usuario.id} style={{
+      backgroundColor: 'white',
+      padding: '16px',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    }}>
+      <div style={{marginBottom: '12px'}}>
+        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Email</p>
+        <p style={{fontWeight: '600'}}>{usuario.email}</p>
+      </div>
+      <div style={{marginBottom: '12px'}}>
+        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Nombre</p>
+        <p style={{fontWeight: '600'}}>{usuario.nombre}</p>
+      </div>
+      <div style={{marginBottom: '12px'}}>
+        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Rol</p>
+        <span style={{
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          backgroundColor: usuario.rol === 'ADMIN' ? '#fef3c7' : '#e0e7ff',
+          color: usuario.rol === 'ADMIN' ? '#92400e' : '#3730a3'
+        }}>
+          {usuario.rol}
+        </span>
+      </div>
+      <div style={{marginBottom: '12px'}}>
+        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Estado</p>
+        <span style={{
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
+          color: usuario.activo ? '#065f46' : '#991b1b'
+        }}>
+          {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
+        </span>
+      </div>
+      <button
+        onClick={() => toggleActivo(usuario.id)}
+        style={{
+          width: '100%',
+          padding: '10px',
+          backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}
+      >
+        {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
+      </button>
+    </div>
+  ))}
+</div>
