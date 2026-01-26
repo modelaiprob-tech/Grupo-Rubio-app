@@ -34,8 +34,6 @@ export default function LoginPage({ onLogin, api }) {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-white">Grupo Rubio</h1>
-          <p className="text-blue-200/70 text-sm mt-1">Sistema de Gestión de Horas</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -78,10 +76,6 @@ export default function LoginPage({ onLogin, api }) {
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-white/10 text-center text-blue-200/50 text-xs">
-          <p>Usuarios de prueba:</p>
-          <p className="mt-1">admin@gruporubio.net / admin123</p>
-        </div>
       </div>
     </div>
   );

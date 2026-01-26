@@ -446,12 +446,7 @@ const guardarAsignacion = async (e) => {
           >
             {copiandoSemana ? 'Copiando...' : 'Copiar'}
           </button>
-          <button
-            onClick={() => setModalPlantillaOpen(true)}
-            className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-sm font-medium"
-          >
-            Guardar
-          </button>
+          
           <GenerarAsignacionesAutomaticas
   onAsignacionesGeneradas={cargarAsignaciones}
   api={api}

@@ -3,10 +3,10 @@ import './Informes.css';
 import InformeNominaDetallada from './InformeNominaDetallada';
 
 function Informes({ api }) {
-const [tipoInforme, setTipoInforme] = useState(null);
+  const [tipoInforme, setTipoInforme] = useState(null);
   const [loading, setLoading] = useState(false);
   const [datos, setDatos] = useState(null);
-  
+
   // Filtros
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [mes, setMes] = useState(new Date().getMonth() + 1);
@@ -114,7 +114,7 @@ return (
   <div className="p-6 bg-slate-50 min-h-screen">
     {/* HEADER */}
     <div className="mb-8">
-      <h1 className="text-3xl font-bold text-slate-900">📊 Informes y Reportes</h1>
+      <h1 className="text-3xl font-bold text-slate-900"> Informes y Reportes</h1>
       <p className="text-slate-600 mt-1">Selecciona el tipo de informe que deseas generar</p>
     </div>
 
@@ -206,203 +206,204 @@ return (
           <span className="font-medium">Volver a Informes</span>
         </button>
 
-        {/* Panel de filtros */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">
-            {tipoInforme === 'estado-trabajadores' && ' Estado Diario de Trabajadores'}
-            {tipoInforme === 'horas-trabajador' && ' Horas por Trabajador'}
-            {tipoInforme === 'horas-cliente' && ' Horas por Cliente'}
-            {tipoInforme === 'resumen-ausencias' && 'Análisis de Ausencias'}
-          </h2>
+        {/* Panel de filtros - NO mostrar para nómina detallada */}
+        {tipoInforme !== 'nomina-detallada' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              {tipoInforme === 'estado-trabajadores' && ' Estado Diario de Trabajadores'}
+              {tipoInforme === 'horas-trabajador' && ' Horas por Trabajador'}
+              {tipoInforme === 'horas-cliente' && ' Horas por Cliente'}
+              {tipoInforme === 'resumen-ausencias' && 'Análisis de Ausencias'}
+            </h2>
 
-          {/* FILTROS ESPECÍFICOS POR TIPO */}
-          <div className="space-y-4">
-            {tipoInforme === 'estado-trabajadores' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Fecha</label>
-                  <input
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+            {/* FILTROS ESPECÍFICOS POR TIPO */}
+            <div className="space-y-4">
+              {tipoInforme === 'estado-trabajadores' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Fecha</label>
+                    <input
+                      type="date"
+                      value={fecha}
+                      onChange={(e) => setFecha(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
+              )}
+
+              {tipoInforme === 'horas-trabajador' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Trabajador</label>
+                    <select
+                      value={trabajadorId}
+                      onChange={(e) => setTrabajadorId(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {trabajadores.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre} {t.apellidos}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
+                    <select
+                      value={mes}
+                      onChange={(e) => setMes(parseInt(e.target.value))}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      {Array.from({length: 12}, (_, i) => (
+                        <option key={i+1} value={i+1}>
+                          {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
+                    <input
+                      type="number"
+                      value={año}
+                      onChange={(e) => setAño(parseInt(e.target.value))}
+                      min="2020"
+                      max="2030"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {tipoInforme === 'horas-cliente' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
+                    <select
+                      value={clienteId}
+                      onChange={(e) => setClienteId(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {clientes.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
+                    <select
+                      value={mes}
+                      onChange={(e) => setMes(parseInt(e.target.value))}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {Array.from({length: 12}, (_, i) => (
+                        <option key={i+1} value={i+1}>
+                          {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
+                    <input
+                      type="number"
+                      value={año}
+                      onChange={(e) => setAño(parseInt(e.target.value))}
+                      min="2020"
+                      max="2030"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {tipoInforme === 'resumen-ausencias' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
+                    <select
+                      value={mes}
+                      onChange={(e) => setMes(parseInt(e.target.value))}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      {Array.from({length: 12}, (_, i) => (
+                        <option key={i+1} value={i+1}>
+                          {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
+                    <input
+                      type="number"
+                      value={año}
+                      onChange={(e) => setAño(parseInt(e.target.value))}
+                      min="2020"
+                      max="2030"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {tipoInforme === 'calendario-empresa' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Cliente/Empresa</label>
+                    <select
+                      value={clienteId}
+                      onChange={(e) => setClienteId(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {clientes.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Desde</label>
+                    <input
+                      type="date"
+                      value={fecha}
+                      onChange={(e) => setFecha(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Hasta</label>
+                    <input
+                      type="date"
+                      value={fechaFin || fecha}
+                      onChange={(e) => setFechaFin(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Botón de acción */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={generarInforme}
+                  disabled={loading}
+                  className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
+                    tipoInforme === 'estado-trabajadores' ? 'bg-blue-500 hover:bg-blue-600' :
+                    tipoInforme === 'horas-trabajador' ? 'bg-green-500 hover:bg-green-600' :
+                    tipoInforme === 'horas-cliente' ? 'bg-purple-500 hover:bg-purple-600' :
+                    'bg-orange-500 hover:bg-orange-600'
+                  } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {loading ? '⏳ Generando...' : ' Generar Informe'}
+                </button>
               </div>
-            )}
-
-            {tipoInforme === 'horas-trabajador' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Trabajador</label>
-                  <select
-                    value={trabajadorId}
-                    onChange={(e) => setTrabajadorId(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {trabajadores.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.nombre} {t.apellidos}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
-                  <select
-                    value={mes}
-                    onChange={(e) => setMes(parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    {Array.from({length: 12}, (_, i) => (
-                      <option key={i+1} value={i+1}>
-                        {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
-                  <input
-                    type="number"
-                    value={año}
-                    onChange={(e) => setAño(parseInt(e.target.value))}
-                    min="2020"
-                    max="2030"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-              </div>
-            )}
-
-            {tipoInforme === 'horas-cliente' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
-                  <select
-                    value={clienteId}
-                    onChange={(e) => setClienteId(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {clientes.map(c => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
-                  <select
-                    value={mes}
-                    onChange={(e) => setMes(parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {Array.from({length: 12}, (_, i) => (
-                      <option key={i+1} value={i+1}>
-                        {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
-                  <input
-                    type="number"
-                    value={año}
-                    onChange={(e) => setAño(parseInt(e.target.value))}
-                    min="2020"
-                    max="2030"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </div>
-              </div>
-            )}
-
-            {tipoInforme === 'resumen-ausencias' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
-                  <select
-                    value={mes}
-                    onChange={(e) => setMes(parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  >
-                    {Array.from({length: 12}, (_, i) => (
-                      <option key={i+1} value={i+1}>
-                        {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
-                  <input
-                    type="number"
-                    value={año}
-                    onChange={(e) => setAño(parseInt(e.target.value))}
-                    min="2020"
-                    max="2030"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </div>
-              </div>
-            )}
-            {tipoInforme === 'calendario-empresa' && (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">Cliente/Empresa</label>
-      <select
-        value={clienteId}
-        onChange={(e) => setClienteId(e.target.value)}
-        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-      >
-        <option value="">Seleccionar...</option>
-        {clientes.map(c => (
-          <option key={c.id} value={c.id}>{c.nombre}</option>
-        ))}
-      </select>
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">Desde</label>
-      <input
-        type="date"
-        value={fecha}
-        onChange={(e) => setFecha(e.target.value)}
-        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">Hasta</label>
-      <input
-        type="date"
-        value={fechaFin || fecha}
-        onChange={(e) => setFechaFin(e.target.value)}
-        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-      />
-    </div>
-  </div>
-)}
-
-            {/* Botón de acción */}
-            <div className="flex gap-3 pt-4">
-              {tipoInforme !== 'nomina-detallada' && (
-  <button
-    onClick={generarInforme}
-    disabled={loading}
-    className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-      tipoInforme === 'estado-trabajadores' ? 'bg-blue-500 hover:bg-blue-600' :
-      tipoInforme === 'horas-trabajador' ? 'bg-green-500 hover:bg-green-600' :
-      tipoInforme === 'horas-cliente' ? 'bg-purple-500 hover:bg-purple-600' :
-      'bg-orange-500 hover:bg-orange-600'
-    } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-  >
-    {loading ? '⏳ Generando...' : ' Generar Informe'}
-  </button>
-)}
             </div>
           </div>
-        </div>
+        )}
 
         {/* VISUALIZACIÓN DE RESULTADOS */}
         {loading && (
@@ -441,7 +442,7 @@ return (
     )}
   </div>
 );
-}
+
 
 // ============================================
 // COMPONENTES DE VISUALIZACIÓN
@@ -450,7 +451,7 @@ return (
 function InformeEstadoTrabajadores({ datos }) {
   return (
     <div className="informe-card">
-      <h2>📋 Estado de Trabajadores - {datos.fecha}</h2>
+      <h2> Estado de Trabajadores - {datos.fecha}</h2>
       
       <div className="stats-grid">
         <div className="stat-box total">
@@ -465,6 +466,7 @@ function InformeEstadoTrabajadores({ datos }) {
           <span className="stat-numero">{datos.resumen.enBajaMedica}</span>
           <span className="stat-label">Bajas Médicas</span>
         </div>
+        
         <div className="stat-box vacaciones">
           <span className="stat-numero">{datos.resumen.enVacaciones}</span>
           <span className="stat-label">Vacaciones</span>
@@ -478,10 +480,11 @@ function InformeEstadoTrabajadores({ datos }) {
           <span className="stat-label">Pendientes Aprobar</span>
         </div>
       </div>
+      
 
       {datos.detalles.bajasMedicas.length > 0 && (
         <div className="detalle-seccion">
-          <h3>🏥 Bajas Médicas</h3>
+          <h3> Bajas Médicas</h3>
           <table className="tabla-informe">
             <thead>
               <tr>
@@ -509,7 +512,7 @@ function InformeEstadoTrabajadores({ datos }) {
 
       {datos.detalles.vacaciones.length > 0 && (
         <div className="detalle-seccion">
-          <h3>🏖️ Vacaciones</h3>
+          <h3> Vacaciones</h3>
           <table className="tabla-informe">
             <thead>
               <tr>
@@ -539,7 +542,7 @@ function InformeEstadoTrabajadores({ datos }) {
 function InformeHorasTrabajador({ datos }) {
   return (
     <div className="informe-card">
-      <h2>⏱️ Informe de Horas - {datos.trabajador.nombre}</h2>
+      <h2> Informe de Horas - {datos.trabajador.nombre}</h2>
       <p className="subtitulo">{datos.periodo.mesNombre} {datos.periodo.año}</p>
 
       <div className="info-trabajador">
@@ -571,7 +574,7 @@ function InformeHorasTrabajador({ datos }) {
       </div>
 
       <div className="detalle-seccion">
-        <h3>📅 Desglose Semanal</h3>
+        <h3> Desglose Semanal</h3>
         <table className="tabla-informe">
           <thead>
             <tr>
@@ -599,7 +602,7 @@ function InformeHorasTrabajador({ datos }) {
       </div>
 
       <div className="detalle-seccion">
-        <h3>📋 Detalle por Día</h3>
+        <h3> Detalle por Día</h3>
         <table className="tabla-informe">
           <thead>
             <tr>
@@ -838,6 +841,7 @@ function InformeCalendarioEmpresa({ datos }) {
       </div>
     </div>
   );
+}
 }
 
 export default Informes;

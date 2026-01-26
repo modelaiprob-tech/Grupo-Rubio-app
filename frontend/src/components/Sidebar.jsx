@@ -6,7 +6,6 @@ export default function Sidebar({ currentPage, setCurrentPage, user, onLogout })
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'planificacion', label: 'Planificación' },
-    { id: 'plantillas', label: 'Plantillas' },
     { id: 'trabajadores', label: 'Trabajadores' },
     { id: 'clientes', label: 'Clientes' },
     { id: 'ausencias', label: 'Ausencias' },

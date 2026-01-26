@@ -212,7 +212,7 @@ function Ausencias({ api }) {
     <div className="ausencias-container">
       <div className="ausencias-header">
         <div>
-          <h1>🏖️ Gestión de Ausencias</h1>
+          <h1> Gestión de Ausencias</h1>
           <p>Vacaciones, permisos, bajas médicas y más</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -225,7 +225,7 @@ function Ausencias({ api }) {
               color: mostrarArchivadas ? 'white' : '#334155'
             }}
           >
-            {mostrarArchivadas ? '📦 Ocultar Archivadas' : '📋 Mostrar Archivadas'}
+            {mostrarArchivadas ? ' Ocultar Archivadas' : ' Mostrar Archivadas'}
           </button>
           <button onClick={() => abrirModal()} className="btn-primary">
             + Nueva Ausencia
@@ -365,7 +365,7 @@ function Ausencias({ api }) {
                     </>
                   )}
                   <button onClick={() => abrirModal(ausencia)} className="btn-edit">
-                    ✏️ Editar
+                     Editar
                   </button>
                   {/* NUEVO: Botón archivar/desarchivar */}
                   <button 
@@ -381,7 +381,7 @@ function Ausencias({ api }) {
                       fontSize: '13px'
                     }}
                   >
-                    {ausencia.archivada ? '📤 Desarchivar' : '📦 Archivar'}
+                    {ausencia.archivada ? ' Desarchivar' : ' Archivar'}
                   </button>
                 </div>
               </div>
