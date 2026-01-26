@@ -57,20 +57,20 @@ export default function Ajustes() {
       <h1 style={{fontSize: '24px', fontWeight: 'bold', marginBottom: '20px'}}>Ajustes</h1>
       
       <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '20px'}}>
-  <button 
-    onClick={() => setMostrarForm(!mostrarForm)}
-    style={{
-      padding: '10px 20px',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '5px',
-      cursor: 'pointer'
-    }}
-  >
-    {mostrarForm ? ' Cancelar' : ' Nuevo Usuario'}
-  </button>
-</div>
+        <button 
+          onClick={() => setMostrarForm(!mostrarForm)}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          {mostrarForm ? '❌ Cancelar' : '➕ Nuevo Usuario'}
+        </button>
+      </div>
 
       {mostrarForm && (
         <form onSubmit={handleSubmit} style={{
@@ -144,132 +144,136 @@ export default function Ajustes() {
         </form>
       )}
 
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        backgroundColor: 'white',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-      }}>
-        <thead>
-          <tr style={{backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb'}}>
-            <th style={{padding: '12px', textAlign: 'left'}}>Email</th>
-            <th style={{padding: '12px', textAlign: 'left'}}>Nombre</th>
-            <th style={{padding: '12px', textAlign: 'left'}}>Rol</th>
-            <th style={{padding: '12px', textAlign: 'center'}}>Estado</th>
-            <th style={{padding: '12px', textAlign: 'center'}}>Último acceso</th>
-            <th style={{padding: '12px', textAlign: 'center'}}>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {usuarios.map(usuario => (
-            <tr key={usuario.id} style={{borderBottom: '1px solid #e5e7eb'}}>
-              <td style={{padding: '12px'}}>{usuario.email}</td>
-              <td style={{padding: '12px'}}>{usuario.nombre}</td>
-              <td style={{padding: '12px'}}>
-                <span style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  backgroundColor: usuario.rol === 'ADMIN' ? '#fef3c7' : '#e0e7ff',
-                  color: usuario.rol === 'ADMIN' ? '#92400e' : '#3730a3'
-                }}>
-                  {usuario.rol}
-                </span>
-              </td>
-              <td style={{padding: '12px', textAlign: 'center'}}>
-                <span style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
-                  color: usuario.activo ? '#065f46' : '#991b1b'
-                }}>
-                  {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
-                </span>
-              </td>
-              <td style={{padding: '12px', textAlign: 'center', fontSize: '14px'}}>
-                {usuario.ultimoAcceso ? new Date(usuario.ultimoAcceso).toLocaleString('es-ES') : 'Nunca'}
-              </td>
-              <td style={{padding: '12px', textAlign: 'center'}}>
-                <button
-                  onClick={() => toggleActivo(usuario.id)}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-);
-}
-    {/* Vista Móvil */}
-<div className="md:hidden space-y-4">
-  {usuarios.map(usuario => (
-    <div key={usuario.id} style={{
-      backgroundColor: 'white',
-      padding: '16px',
-      borderRadius: '8px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    }}>
-      <div style={{marginBottom: '12px'}}>
-        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Email</p>
-        <p style={{fontWeight: '600'}}>{usuario.email}</p>
-      </div>
-      <div style={{marginBottom: '12px'}}>
-        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Nombre</p>
-        <p style={{fontWeight: '600'}}>{usuario.nombre}</p>
-      </div>
-      <div style={{marginBottom: '12px'}}>
-        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Rol</p>
-        <span style={{
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          backgroundColor: usuario.rol === 'ADMIN' ? '#fef3c7' : '#e0e7ff',
-          color: usuario.rol === 'ADMIN' ? '#92400e' : '#3730a3'
-        }}>
-          {usuario.rol}
-        </span>
-      </div>
-      <div style={{marginBottom: '12px'}}>
-        <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Estado</p>
-        <span style={{
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
-          color: usuario.activo ? '#065f46' : '#991b1b'
-        }}>
-          {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
-        </span>
-      </div>
-      <button
-        onClick={() => toggleActivo(usuario.id)}
-        style={{
+      {/* Vista Desktop */}
+      <div className="hidden md:block" style={{overflowX: 'auto'}}>
+        <table style={{
           width: '100%',
-          padding: '10px',
-          backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: '500'
-        }}
-      >
-        {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
-      </button>
+          borderCollapse: 'collapse',
+          backgroundColor: 'white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <thead>
+            <tr style={{backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb'}}>
+              <th style={{padding: '12px', textAlign: 'left'}}>Email</th>
+              <th style={{padding: '12px', textAlign: 'left'}}>Nombre</th>
+              <th style={{padding: '12px', textAlign: 'left'}}>Rol</th>
+              <th style={{padding: '12px', textAlign: 'center'}}>Estado</th>
+              <th style={{padding: '12px', textAlign: 'center'}}>Último acceso</th>
+              <th style={{padding: '12px', textAlign: 'center'}}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map(usuario => (
+              <tr key={usuario.id} style={{borderBottom: '1px solid #e5e7eb'}}>
+                <td style={{padding: '12px'}}>{usuario.email}</td>
+                <td style={{padding: '12px'}}>{usuario.nombre}</td>
+                <td style={{padding: '12px'}}>
+                  <span style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    backgroundColor: usuario.rol === 'ADMIN' ? '#fef3c7' : '#e0e7ff',
+                    color: usuario.rol === 'ADMIN' ? '#92400e' : '#3730a3'
+                  }}>
+                    {usuario.rol}
+                  </span>
+                </td>
+                <td style={{padding: '12px', textAlign: 'center'}}>
+                  <span style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
+                    color: usuario.activo ? '#065f46' : '#991b1b'
+                  }}>
+                    {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
+                  </span>
+                </td>
+                <td style={{padding: '12px', textAlign: 'center', fontSize: '14px'}}>
+                  {usuario.ultimoAcceso ? new Date(usuario.ultimoAcceso).toLocaleString('es-ES') : 'Nunca'}
+                </td>
+                <td style={{padding: '12px', textAlign: 'center'}}>
+                  <button
+                    onClick={() => toggleActivo(usuario.id)}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Vista Móvil */}
+      <div className="md:hidden" style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+        {usuarios.map(usuario => (
+          <div key={usuario.id} style={{
+            backgroundColor: 'white',
+            padding: '16px',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{marginBottom: '12px'}}>
+              <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Email</p>
+              <p style={{fontWeight: '600'}}>{usuario.email}</p>
+            </div>
+            <div style={{marginBottom: '12px'}}>
+              <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Nombre</p>
+              <p style={{fontWeight: '600'}}>{usuario.nombre}</p>
+            </div>
+            <div style={{marginBottom: '12px'}}>
+              <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Rol</p>
+              <span style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                backgroundColor: usuario.rol === 'ADMIN' ? '#fef3c7' : '#e0e7ff',
+                color: usuario.rol === 'ADMIN' ? '#92400e' : '#3730a3'
+              }}>
+                {usuario.rol}
+              </span>
+            </div>
+            <div style={{marginBottom: '12px'}}>
+              <p style={{fontSize: '14px', color: '#6b7280', marginBottom: '4px'}}>Estado</p>
+              <span style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
+                color: usuario.activo ? '#065f46' : '#991b1b'
+              }}>
+                {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
+              </span>
+            </div>
+            <button
+              onClick={() => toggleActivo(usuario.id)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
-  ))}
-</div>
+  );
+}
