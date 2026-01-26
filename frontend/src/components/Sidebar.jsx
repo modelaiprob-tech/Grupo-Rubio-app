@@ -48,23 +48,36 @@ export default function Sidebar({ currentPage, setCurrentPage, user, onLogout })
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center gap-3 px-4 py-2 mb-2">
-          <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
-            <span className="font-bold">{user.nombre.charAt(0)}</span>
-          </div>
-          <div>
-            <p className="text-sm font-medium">{user.nombre}</p>
-            <p className="text-xs text-slate-400">{user.rol}</p>
-          </div>
-        </div>
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
-        >
-          <span>🚪</span>
-          <span className="font-medium">Cerrar sesión</span>
-        </button>
-      </div>
+  <div className="flex items-center gap-3 px-4 py-2 mb-2">
+    <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+      <span className="font-bold">{user.nombre.charAt(0)}</span>
+    </div>
+    <div className="flex-1">
+      <p className="text-sm font-medium">{user.nombre}</p>
+      <p className="text-xs text-slate-400">{user.rol}</p>
+    </div>
+    {user.rol === 'ADMIN' && (
+      <button
+        onClick={() => setCurrentPage('ajustes')}
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+          currentPage === 'ajustes'
+            ? 'bg-blue-500 text-white'
+            : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-white'
+        }`}
+        title="Ajustes"
+      >
+        ⚙️
+      </button>
+    )}
+  </div>
+  <button
+    onClick={onLogout}
+    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+  >
+    <span></span>
+    <span className="font-medium">Cerrar sesión</span>
+  </button>
+</div>
     </aside>
   );
 }

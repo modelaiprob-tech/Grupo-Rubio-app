@@ -15,6 +15,8 @@ import ClientesPage from './pages/ClientesPage';
 import RRHHPage from './pages/RRHHPage';
 import ControlHorasPage from './pages/ControlHorasPage';
 import Sidebar from './components/Sidebar';
+import Ajustes from './pages/Ajustes';
+
 
 
   // Componente para tarjeta desplegable de centro sin cubrir
@@ -115,6 +117,7 @@ import Sidebar from './components/Sidebar';
       { id: 'ausencias', label: 'Ausencias' },
       { id: 'informes', label: 'Informes' },
       { id: 'rrhh', label: 'RR.HH' },
+        { id: 'ajustes', label: 'Ajustes' },  // 👈 AÑADE ESTA LÍNEA
     ]
 
 
@@ -136,6 +139,8 @@ import Sidebar from './components/Sidebar';
           return <Informes api={api} />
           case 'rrhh':
   return <RRHHPage api={api} />
+case 'ajustes':  // 👈 AÑADE ESTAS 2 LÍNEAS
+  return <Ajustes />
         default:
           return <PlaceholderPage title={menuItems.find(m => m.id === currentPage)?.label || 'Página'} />
       }
