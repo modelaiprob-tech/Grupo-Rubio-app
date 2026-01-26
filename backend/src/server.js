@@ -45,12 +45,12 @@ function  validarDNI(dni) {
 // MIDDLEWARE
 // ============================================
 app.use(helmet());
-// CORS configurado para desarrollo y producción
+// CORS configurado
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://grupo-rubio-app.onrender.com'] // ← Cambiarás esto después
-    : 'http://localhost:5173',
-  credentials: true
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
