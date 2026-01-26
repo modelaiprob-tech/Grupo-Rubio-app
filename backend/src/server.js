@@ -2549,6 +2549,24 @@ app.listen(PORT, () => {
 
         module.exports = app;
 
+// TEMPORAL - Crear admin
+app.post('/api/setup-admin', async (req, res) => {
+  try {
+    const passwordHash = await bcrypt.hash('admin123', 10);
+    const usuario = await prisma.usuario.create({
+      data: {
+        email: 'admin@gruporubio.com',
+        passwordHash,
+        nombre: 'Administrador',
+        rol: 'ADMIN',
+        activo: true
+      }
+    });
+    res.json({ mensaje: 'Admin creado', usuario });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // ============================================
 // RUTA: CALCULAR NÓMINA DE TRABAJADOR
 // ============================================
