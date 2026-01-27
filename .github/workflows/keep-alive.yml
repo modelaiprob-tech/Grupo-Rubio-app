@@ -1,0 +1,23 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Cada 10 minutos
+  workflow_dispatch:  # Permite ejecutar manualmente
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend
+        run: |
+          echo "Despertando backend..."
+          curl -f https://grupo-rubio-backend.onrender.com/api/health || echo "Backend despertando..."
+          
+      - name: Ping Database via Backend
+        run: |
+          echo "Verificando base de datos..."
+          curl -f https://grupo-rubio-backend.onrender.com/api/health || echo "BD despertando..."
+          
+      - name: Success
+        run: echo "✅ Servicios despiertos"
