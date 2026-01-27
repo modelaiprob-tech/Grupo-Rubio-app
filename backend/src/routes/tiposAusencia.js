@@ -27,10 +27,25 @@ router.post('/', async (req, res) => {
       restaVacaciones,
       restaAsuntos,
       pagada,
+      // CÁLCULO ECONÓMICO
       porcentajeCobro,
-      colorHex,
+      usaTramos,
+      tramosJson,
+      baseCalculo,
+      diasCarencia,
+      topeDiarioEuros,
+      // QUIÉN PAGA
+      pagador,
+      // CÓMPUTO DÍAS
+      incluyeDomingos,
+      incluyeFestivos,
       diasMaximo,
-      requiereJustificante
+      // DOCUMENTACIÓN
+      requiereJustificante,
+      tipoJustificante,
+      requiereAltaMedica,
+      // METADATA
+      colorHex
     } = req.body;
 
     const tipo = await prisma.tipoAusencia.create({
@@ -41,10 +56,25 @@ router.post('/', async (req, res) => {
         restaVacaciones: restaVacaciones || false,
         restaAsuntos: restaAsuntos || false,
         pagada: pagada !== undefined ? pagada : true,
+        // CÁLCULO ECONÓMICO
         porcentajeCobro: porcentajeCobro || 100,
-        colorHex: colorHex || '#6B7280',
-        diasMaximo,
+        usaTramos: usaTramos || false,
+        tramosJson: tramosJson || null,
+        baseCalculo: baseCalculo || 'SALARIO_BASE',
+        diasCarencia: diasCarencia || 0,
+        topeDiarioEuros: topeDiarioEuros || null,
+        // QUIÉN PAGA
+        pagador: pagador || 'EMPRESA',
+        // CÓMPUTO DÍAS
+        incluyeDomingos: incluyeDomingos !== undefined ? incluyeDomingos : true,
+        incluyeFestivos: incluyeFestivos !== undefined ? incluyeFestivos : true,
+        diasMaximo: diasMaximo || null,
+        // DOCUMENTACIÓN
         requiereJustificante: requiereJustificante || false,
+        tipoJustificante: tipoJustificante || 'MEDICO',
+        requiereAltaMedica: requiereAltaMedica || false,
+        // METADATA
+        colorHex: colorHex || '#6B7280',
         activo: true
       }
     });
@@ -60,39 +90,82 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      codigo,
-      nombre,
-      descripcion,
-      restaVacaciones,
-      restaAsuntos,
-      pagada,
-      porcentajeCobro,
-      colorHex,
-      diasMaximo,
-      requiereJustificante
-    } = req.body;
+    
+    // Construir objeto data con conversiones de tipos
+    const data = {};
+    
+    // Campos básicos
+    if (req.body.codigo !== undefined) data.codigo = req.body.codigo;
+    if (req.body.nombre !== undefined) data.nombre = req.body.nombre;
+    if (req.body.descripcion !== undefined) data.descripcion = req.body.descripcion;
+    if (req.body.restaVacaciones !== undefined) data.restaVacaciones = Boolean(req.body.restaVacaciones);
+    if (req.body.restaAsuntos !== undefined) data.restaAsuntos = Boolean(req.body.restaAsuntos);
+    if (req.body.pagada !== undefined) data.pagada = Boolean(req.body.pagada);
+    
+    // CÁLCULO ECONÓMICO - Convertir strings a números
+    if (req.body.porcentajeCobro !== undefined) {
+      data.porcentajeCobro = parseFloat(req.body.porcentajeCobro);
+    }
+    if (req.body.usaTramos !== undefined) {
+      data.usaTramos = Boolean(req.body.usaTramos);
+    }
+    if (req.body.tramosJson !== undefined) {
+      data.tramosJson = req.body.tramosJson || null;
+    }
+    if (req.body.baseCalculo !== undefined) {
+      data.baseCalculo = req.body.baseCalculo;
+    }
+    if (req.body.diasCarencia !== undefined) {
+      data.diasCarencia = parseInt(req.body.diasCarencia) || 0;
+    }
+    if (req.body.topeDiarioEuros !== undefined) {
+      data.topeDiarioEuros = req.body.topeDiarioEuros ? parseFloat(req.body.topeDiarioEuros) : null;
+    }
+    
+    // QUIÉN PAGA
+    if (req.body.pagador !== undefined) {
+      data.pagador = req.body.pagador;
+    }
+    
+    // CÓMPUTO DÍAS
+    if (req.body.incluyeDomingos !== undefined) {
+      data.incluyeDomingos = Boolean(req.body.incluyeDomingos);
+    }
+    if (req.body.incluyeFestivos !== undefined) {
+      data.incluyeFestivos = Boolean(req.body.incluyeFestivos);
+    }
+    if (req.body.diasMaximo !== undefined) {
+      data.diasMaximo = req.body.diasMaximo ? parseInt(req.body.diasMaximo) : null;
+    }
+    
+    // DOCUMENTACIÓN
+    if (req.body.requiereJustificante !== undefined) {
+      data.requiereJustificante = Boolean(req.body.requiereJustificante);
+    }
+    if (req.body.tipoJustificante !== undefined) {
+      data.tipoJustificante = req.body.tipoJustificante;
+    }
+    if (req.body.requiereAltaMedica !== undefined) {
+      data.requiereAltaMedica = Boolean(req.body.requiereAltaMedica);
+    }
+    
+    // METADATA
+    if (req.body.colorHex !== undefined) {
+      data.colorHex = req.body.colorHex;
+    }
 
     const tipo = await prisma.tipoAusencia.update({
       where: { id: parseInt(id) },
-      data: {
-        codigo,
-        nombre,
-        descripcion,
-        restaVacaciones,
-        restaAsuntos,
-        pagada,
-        porcentajeCobro,
-        colorHex,
-        diasMaximo,
-        requiereJustificante
-      }
+      data: data
     });
 
     res.json(tipo);
   } catch (error) {
     console.error('Error actualizando tipo de ausencia:', error);
-    res.status(500).json({ error: 'Error al actualizar tipo de ausencia' });
+    res.status(500).json({ 
+      error: 'Error al actualizar tipo de ausencia',
+      detalle: error.message 
+    });
   }
 });
 

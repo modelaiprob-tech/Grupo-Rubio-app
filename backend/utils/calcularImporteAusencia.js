@@ -1,31 +1,21 @@
-/**
- * Calcula el importe a cobrar por una ausencia según el tipo y duración
- * Basado en legislación española estándar
- */
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 /**
  * Obtiene el % de cobro para un día específico de ausencia
- * @param {Object} tipoAusencia - Tipo de ausencia con sus configuraciones
- * @param {number} numeroDia - Número de día de la ausencia (1, 2, 3...)
- * @returns {number} Porcentaje de cobro (0-100)
  */
 function obtenerPorcentajeDia(tipoAusencia, numeroDia) {
-  // Si no usa tramos, devolver porcentaje fijo
   if (!tipoAusencia.usaTramos || !tipoAusencia.tramosJson) {
     return parseFloat(tipoAusencia.porcentajeCobro);
   }
 
   try {
     const tramos = JSON.parse(tipoAusencia.tramosJson);
-    
-    // Buscar el tramo que corresponde a este día
     for (const tramo of tramos) {
       if (numeroDia >= tramo.diaDesde && numeroDia <= tramo.diaHasta) {
         return parseFloat(tramo.porcentaje);
       }
     }
-    
-    // Si no encuentra tramo, usar porcentaje por defecto
     return parseFloat(tipoAusencia.porcentajeCobro);
   } catch (error) {
     console.error('Error parseando tramosJson:', error);
@@ -34,177 +24,209 @@ function obtenerPorcentajeDia(tipoAusencia, numeroDia) {
 }
 
 /**
- * Calcula el salario base diario según la base de cálculo configurada
- * @param {Object} trabajador - Trabajador con categoria y acuerdos incluidos
- * @param {string} baseCalculo - Tipo de base (SALARIO_BASE | SALARIO_TOTAL | SALARIO_REGULADOR)
- * @returns {number} Salario diario en euros
+ * Calcula el precio por hora del trabajador
  */
-function calcularSalarioDiario(trabajador, baseCalculo) {
+function calcularPrecioHoraTrabajador(trabajador, baseCalculo) {
   const categoria = trabajador.categoria;
-  
-  // Salario mensual base
   let salarioMensual = parseFloat(categoria.salarioBase || 0);
   
-  // Según el tipo de base de cálculo
   switch (baseCalculo) {
     case 'SALARIO_TOTAL':
-      // Incluir pluses fijos mensuales
       salarioMensual += parseFloat(categoria.plusTransporte || 0);
       salarioMensual += parseFloat(categoria.plusPeligrosidad || 0);
-      
-      // Incluir acuerdos individuales de plus mensual
       if (trabajador.acuerdosIndividuales) {
         trabajador.acuerdosIndividuales
           .filter(a => a.activo && a.tipoAcuerdo === 'PLUS_MENSUAL')
-          .forEach(a => {
-            salarioMensual += parseFloat(a.valor);
-          });
+          .forEach(a => salarioMensual += parseFloat(a.valor));
       }
       break;
       
     case 'SALARIO_REGULADOR':
-      // Para IT: promedio últimos 180 días cotizados
-      // Por ahora usamos salario base + pluses (simplificado)
       salarioMensual += parseFloat(categoria.plusTransporte || 0);
       salarioMensual += parseFloat(categoria.plusPeligrosidad || 0);
       break;
-      
-    case 'SALARIO_BASE':
-    default:
-      // Solo salario base, ya está calculado
-      break;
   }
   
-  // Convertir a diario (asumiendo 30 días/mes según convenio)
-  return salarioMensual / 30;
+  // Convertir a precio por hora (160h/mes estándar)
+  const horasMes = parseFloat(trabajador.horasContrato) * 4.33; // ~4.33 semanas/mes
+  return salarioMensual / horasMes;
 }
 
 /**
- * Calcula cuántos días laborables hay en el período de ausencia
- * @param {Date} fechaInicio 
- * @param {Date} fechaFin 
- * @param {boolean} incluyeDomingos 
- * @param {boolean} incluyeFestivos 
- * @param {Array} festivosNacionales - Array de fechas festivas
- * @returns {number} Número de días laborables
+ * 🔥 FUNCIÓN CLAVE: Obtiene las horas que el trabajador HUBIERA trabajado cada día
+ * Esta es la base legal correcta para calcular ausencias
  */
-function contarDiasLaborables(fechaInicio, fechaFin, incluyeDomingos, incluyeFestivos, festivosNacionales = []) {
-  let dias = 0;
-  const actual = new Date(fechaInicio);
+async function obtenerHorasPerdidas(trabajadorId, fechaInicio, fechaFin) {
+  const inicio = new Date(fechaInicio);
+  const fin = new Date(fechaFin);
   
-  while (actual <= fechaFin) {
-    const esDomingo = actual.getDay() === 0;
-    const esFestivo = festivosNacionales.some(f => 
-      f.getDate() === actual.getDate() &&
-      f.getMonth() === actual.getMonth() &&
-      f.getFullYear() === actual.getFullYear()
-    );
-    
-    // Contar según configuración
-    if (esDomingo && !incluyeDomingos) {
-      actual.setDate(actual.getDate() + 1);
-      continue;
-    }
-    
-    if (esFestivo && !incluyeFestivos) {
-      actual.setDate(actual.getDate() + 1);
-      continue;
-    }
-    
-    dias++;
-    actual.setDate(actual.getDate() + 1);
-  }
+  // Normalizar fechas a medianoche UTC
+  inicio.setUTCHours(0, 0, 0, 0);
+  fin.setUTCHours(23, 59, 59, 999);
+
+  console.log(`📅 Buscando turnos perdidos de trabajador ${trabajadorId} del ${inicio.toISOString()} al ${fin.toISOString()}`);
+
+  const asignaciones = await prisma.asignacion.findMany({
+    where: {
+      trabajadorId: parseInt(trabajadorId),
+      fecha: { gte: inicio, lte: fin },
+      estado: { notIn: ['CANCELADO'] }
+    },
+    select: {
+      fecha: true,
+      horaInicio: true,
+      horaFin: true
+    },
+    orderBy: { fecha: 'asc' }
+  });
+
+  console.log(`✅ Asignaciones encontradas: ${asignaciones.length}`);
+
+  // Agrupar por día y sumar horas
+  const horasPorDia = {};
   
-  return dias;
+  asignaciones.forEach(asig => {
+    const fechaStr = new Date(asig.fecha).toISOString().split('T')[0];
+    
+    // Calcular horas del turno
+    const [hi, mi] = asig.horaInicio.split(':').map(Number);
+    const [hf, mf] = asig.horaFin.split(':').map(Number);
+    let horas = (hf + mf / 60) - (hi + mi / 60);
+    if (horas < 0) horas += 24; // Cruce de medianoche
+    
+    if (!horasPorDia[fechaStr]) {
+      horasPorDia[fechaStr] = 0;
+    }
+    horasPorDia[fechaStr] += horas;
+    
+    console.log(`   ${fechaStr}: +${horas.toFixed(2)}h (${asig.horaInicio}-${asig.horaFin})`);
+  });
+
+  return horasPorDia;
 }
 
 /**
- * FUNCIÓN PRINCIPAL: Calcula el importe total de una ausencia
- * @param {Object} trabajador - Trabajador con categoria y acuerdos incluidos
- * @param {Object} ausencia - Ausencia con fechas y tipoAusencia incluido
- * @param {Array} festivosNacionales - Array de fechas festivas (opcional)
- * @returns {Object} { importeTotal, diasCobrados, diasCarencia, desglosePorDia }
+ * 🔥 FUNCIÓN PRINCIPAL CORREGIDA
+ * Calcula ausencias basándose en HORAS PERDIDAS, no en días de calendario
  */
-function calcularImporteAusencia(trabajador, ausencia, festivosNacionales = []) {
+async function calcularImporteAusencia(trabajador, ausencia) {
   const tipoAusencia = ausencia.tipoAusencia;
   
-  // Si no es ausencia pagada, importe = 0
+  // Si no es pagada, retornar 0
   if (!tipoAusencia.pagada) {
+    console.log(`❌ Ausencia no pagada para ${trabajador.nombre}`);
     return {
       importeTotal: 0,
       diasCobrados: 0,
       diasCarencia: 0,
+      diasLaborables: 0,
       desglosePorDia: []
     };
   }
   
-  // Calcular salario diario base
-  const salarioDiario = calcularSalarioDiario(trabajador, tipoAusencia.baseCalculo);
-  
-  // Contar días laborables del período
-  const diasLaborables = contarDiasLaborables(
-    new Date(ausencia.fechaInicio),
-    new Date(ausencia.fechaFin),
-    tipoAusencia.incluyeDomingos,
-    tipoAusencia.incluyeFestivos,
-    festivosNacionales
+  console.log(`\n💰 Calculando ausencia para ${trabajador.nombre} ${trabajador.apellidos}`);
+  console.log(`   Tipo: ${tipoAusencia.nombre} (${tipoAusencia.codigo})`);
+  console.log(`   Período: ${ausencia.fechaInicio} → ${ausencia.fechaFin}`);
+  console.log(`   Días carencia: ${tipoAusencia.diasCarencia}`);
+  console.log(`   Base cálculo: ${tipoAusencia.baseCalculo}`);
+
+  // Obtener horas que hubiera trabajado
+  const horasPorDia = await obtenerHorasPerdidas(
+    trabajador.id,
+    ausencia.fechaInicio,
+    ausencia.fechaFin
   );
-  
-  // Días de carencia (sin cobro)
+
+  const diasConTurno = Object.keys(horasPorDia).length;
+  console.log(`   📊 Días con turno perdido: ${diasConTurno}`);
+
+  if (diasConTurno === 0) {
+    console.log(`   ⚠️ No tenía turnos programados en este período`);
+    return {
+      importeTotal: 0,
+      diasCobrados: 0,
+      diasCarencia: tipoAusencia.diasCarencia || 0,
+      diasLaborables: 0,
+      desglosePorDia: []
+    };
+  }
+
+  // Calcular precio por hora
+  const precioHora = calcularPrecioHoraTrabajador(trabajador, tipoAusencia.baseCalculo);
+  console.log(`   💵 Precio/hora: ${precioHora.toFixed(2)}€`);
+
+  // Aplicar días de carencia y porcentajes
   const diasCarencia = parseInt(tipoAusencia.diasCarencia || 0);
-  
-  // Calcular importe día por día
   const desglosePorDia = [];
   let importeTotal = 0;
   let diasCobrados = 0;
-  
-  for (let i = 1; i <= diasLaborables; i++) {
-    // Días de carencia no se cobran
-    if (i <= diasCarencia) {
+  let numeroDia = 1;
+
+  // Ordenar fechas
+  const fechasOrdenadas = Object.keys(horasPorDia).sort();
+
+  fechasOrdenadas.forEach(fecha => {
+    const horas = horasPorDia[fecha];
+    
+    // Aplicar carencia
+    if (numeroDia <= diasCarencia) {
+      console.log(`   🚫 Día ${numeroDia} (${fecha}): CARENCIA - ${horas}h perdidas, 0€`);
       desglosePorDia.push({
-        dia: i,
+        fecha,
+        dia: numeroDia,
+        horas,
         porcentaje: 0,
         importeBruto: 0,
         motivo: 'Día de carencia'
       });
-      continue;
+      numeroDia++;
+      return;
     }
-    
-    // Obtener % según tramos o fijo
-    const porcentaje = obtenerPorcentajeDia(tipoAusencia, i);
-    let importeDia = salarioDiario * (porcentaje / 100);
-    
+
+    // Calcular porcentaje según tramos
+    const porcentaje = obtenerPorcentajeDia(tipoAusencia, numeroDia);
+    let importeDia = horas * precioHora * (porcentaje / 100);
+
     // Aplicar tope diario si existe
     if (tipoAusencia.topeDiarioEuros) {
       const tope = parseFloat(tipoAusencia.topeDiarioEuros);
       if (importeDia > tope) {
+        console.log(`   ⚠️ Tope aplicado: ${importeDia.toFixed(2)}€ → ${tope}€`);
         importeDia = tope;
       }
     }
-    
+
+    console.log(`   ✅ Día ${numeroDia} (${fecha}): ${horas}h × ${precioHora.toFixed(2)}€ × ${porcentaje}% = ${importeDia.toFixed(2)}€`);
+
     desglosePorDia.push({
-      dia: i,
-      porcentaje: porcentaje,
+      fecha,
+      dia: numeroDia,
+      horas,
+      porcentaje,
       importeBruto: parseFloat(importeDia.toFixed(2)),
       motivo: porcentaje === 100 ? 'Cobro total' : `${porcentaje}% del salario`
     });
-    
+
     importeTotal += importeDia;
     diasCobrados++;
-  }
-  
+    numeroDia++;
+  });
+
+  console.log(`   💰 TOTAL: ${importeTotal.toFixed(2)}€ por ${diasCobrados} días laborables\n`);
+
   return {
     importeTotal: parseFloat(importeTotal.toFixed(2)),
-    diasCobrados: diasCobrados,
-    diasCarencia: diasCarencia,
-    salarioDiarioBase: parseFloat(salarioDiario.toFixed(2)),
-    desglosePorDia: desglosePorDia
+    diasCobrados,
+    diasCarencia,
+    diasLaborables: diasConTurno,
+    precioHora: parseFloat(precioHora.toFixed(2)),
+    desglosePorDia
   };
 }
 
 module.exports = {
   calcularImporteAusencia,
-  calcularSalarioDiario,
   obtenerPorcentajeDia,
-  contarDiasLaborables
+  calcularPrecioHoraTrabajador,
+  obtenerHorasPerdidas
 };

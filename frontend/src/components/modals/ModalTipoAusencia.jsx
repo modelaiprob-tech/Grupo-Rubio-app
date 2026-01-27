@@ -47,12 +47,13 @@ export default function ModalTipoAusencia({ tipo, onClose, onGuardar, api }) {
     try {
       setGuardando(true);
       const data = {
-        ...formData,
-        diasMaximo: formData.diasMaximo || null,
-        topeDiarioEuros: formData.topeDiarioEuros || null,
-        tramosJson: formData.usaTramos && formData.tramosJson ? formData.tramosJson : null
-      };
-      
+  ...formData,
+  porcentajeCobro: parseFloat(formData.porcentajeCobro) || 100,
+  diasCarencia: parseInt(formData.diasCarencia) || 0,
+  diasMaximo: formData.diasMaximo ? parseInt(formData.diasMaximo) : null,
+  topeDiarioEuros: formData.topeDiarioEuros ? parseFloat(formData.topeDiarioEuros) : null,
+  tramosJson: formData.usaTramos && formData.tramosJson ? formData.tramosJson : null
+};
       if (tipo) {
         await api.put(`/tipos-ausencia/${tipo.id}`, data);
       } else {

@@ -7,10 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
-// Aquí empieza tu código actual:
 router.get('/calendario-empresa', async (req, res) => {
-  // ... resto del código
   try {
     const { clienteId, fechaInicio, fechaFin } = req.query;
 
@@ -21,19 +18,29 @@ router.get('/calendario-empresa', async (req, res) => {
     }
 
     // 1. Obtener todos los centros del cliente
-const centros = await prisma.centroTrabajo.findMany({
-  where: { 
-    clienteId: parseInt(clienteId),
-    activo: true
-  },
-  include: {
-    cliente: true  // ← AÑADIR ESTA LÍNEA
-  }
-});
+    const centros = await prisma.centroTrabajo.findMany({
+      where: { 
+        clienteId: parseInt(clienteId),
+        activo: true
+      },
+      include: {
+        cliente: true
+      }
+    });
 
     const centroIds = centros.map(c => c.id);
 
-    // 2. Obtener todas las asignaciones del periodo
+    if (centroIds.length === 0) {
+      return res.json({
+        cliente: null,
+        fechaInicio,
+        fechaFin,
+        fechas: [],
+        trabajadores: []
+      });
+    }
+
+    // 2. Obtener todas las asignaciones del periodo EN ESOS CENTROS
     const asignaciones = await prisma.asignacion.findMany({
       where: {
         centroId: { in: centroIds },
@@ -49,23 +56,23 @@ const centros = await prisma.centroTrabajo.findMany({
       }
     });
 
-    /// 3. Obtener todas las ausencias del periodo (SOLO APROBADAS Y PENDIENTES)
-const ausencias = await prisma.ausencia.findMany({
-  where: {
-    fechaInicio: { lte: new Date(fechaFin) },
-    fechaFin: { gte: new Date(fechaInicio) },
-    estado: { in: ['APROBADA', 'PENDIENTE'] }  // ← AÑADIR ESTA LÍNEA
-  }
-    });
+    // 🔥 3. Obtener IDs únicos de trabajadores que trabajan en esos centros
+    const trabajadorIds = [...new Set(asignaciones.map(a => a.trabajadorId))];
 
-    // 4. Obtener lista única de trabajadores
-    const trabajadoresSet = new Set();
-    asignaciones.forEach(a => trabajadoresSet.add(a.trabajadorId));
-    ausencias.forEach(a => trabajadoresSet.add(a.trabajadorId));
+    if (trabajadorIds.length === 0) {
+      return res.json({
+        cliente: centros[0]?.cliente || null,
+        fechaInicio,
+        fechaFin,
+        fechas: [],
+        trabajadores: []
+      });
+    }
 
+    // 🔥 4. Obtener SOLO trabajadores que trabajan en este cliente
     const trabajadores = await prisma.trabajador.findMany({
       where: {
-        id: { in: Array.from(trabajadoresSet) },
+        id: { in: trabajadorIds },
         activo: true
       },
       orderBy: [
@@ -74,7 +81,20 @@ const ausencias = await prisma.ausencia.findMany({
       ]
     });
 
-    // 5. Generar array de fechas
+    // 🔥 5. Obtener ausencias SOLO de esos trabajadores
+    const ausencias = await prisma.ausencia.findMany({
+      where: {
+        trabajadorId: { in: trabajadorIds },
+        fechaInicio: { lte: new Date(fechaFin) },
+        fechaFin: { gte: new Date(fechaInicio) },
+        estado: { in: ['APROBADA', 'PENDIENTE'] }
+      },
+      include: {
+        tipoAusencia: true
+      }
+    });
+
+    // 6. Generar array de fechas
     const fechas = [];
     const currentDate = new Date(fechaInicio);
     const endDate = new Date(fechaFin);
@@ -84,7 +104,7 @@ const ausencias = await prisma.ausencia.findMany({
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // 6. Construir la matriz
+    // 7. Construir la matriz
     const matriz = trabajadores.map(trabajador => {
       const fila = {
         trabajadorId: trabajador.id,
@@ -98,71 +118,79 @@ const ausencias = await prisma.ausencia.findMany({
         
         // Verificar ausencias
         const ausencia = ausencias.find(a => {
-  const inicioAusencia = new Date(a.fechaInicio);
-  const finAusencia = a.fechaAltaReal 
-    ? new Date(a.fechaAltaReal) 
-    : new Date(a.fechaFin);
-  
-  return a.trabajadorId === trabajador.id &&
-    inicioAusencia <= fecha &&
-    finAusencia >= fecha;
-});
+          const inicioAusencia = new Date(a.fechaInicio);
+          const finAusencia = a.fechaAltaReal 
+            ? new Date(a.fechaAltaReal) 
+            : new Date(a.fechaFin);
+          
+          return a.trabajadorId === trabajador.id &&
+            inicioAusencia <= fecha &&
+            finAusencia >= fecha;
+        });
 
         if (ausencia) {
           // Hay ausencia
-const tipoAusencia = ausencia.tipoAusencia?.nombre?.toLowerCase() || '';
-          let codigo = 'A'; // Por defecto
+          const tipoAusencia = ausencia.tipoAusencia?.nombre?.toLowerCase() || '';
+          let codigo = 'A';
+          let color = 'rojo';
           
           if (tipoAusencia.includes('vacacion')) {
             codigo = 'V';
+            color = 'azul';
           } else if (tipoAusencia.includes('baja') || tipoAusencia.includes('médica') || tipoAusencia.includes('medica')) {
             codigo = 'BM';
+            color = 'rojo';
+          }
+
+          if (ausencia.estado === 'PENDIENTE') {
+            codigo = 'BP';
+            color = 'amarillo';
           }
           
           fila.dias[fechaStr] = {
-            codigo: ausencia.estado === 'PENDIENTE' ? 'BP' : codigo,
+            codigo,
             estado: ausencia.estado,
             tipo: ausencia.tipoAusencia?.nombre || 'Ausencia',
-            color: ausencia.estado === 'PENDIENTE' ? 'amarillo' : 'rojo'
+            color
           };
         } else {
-  // Verificar si trabaja ese día (pueden ser varias asignaciones = jornada partida)
-  const asignacionesDia = asignaciones.filter(a =>
-    a.trabajadorId === trabajador.id &&
-    a.fecha.toISOString().split('T')[0] === fechaStr
-  );
-  // ✅ ORDENAR por hora de inicio
-asignacionesDia.sort((a, b) => {
-  const horaA = a.horaInicio.split(':').map(Number);
-  const horaB = b.horaInicio.split(':').map(Number);
-  return (horaA[0] * 60 + horaA[1]) - (horaB[0] * 60 + horaB[1]);
-});
+          // Verificar si trabaja ese día
+          const asignacionesDia = asignaciones.filter(a =>
+            a.trabajadorId === trabajador.id &&
+            a.fecha.toISOString().split('T')[0] === fechaStr
+          );
 
+          // Ordenar por hora de inicio
+          asignacionesDia.sort((a, b) => {
+            const horaA = a.horaInicio.split(':').map(Number);
+            const horaB = b.horaInicio.split(':').map(Number);
+            return (horaA[0] * 60 + horaA[1]) - (horaB[0] * 60 + horaB[1]);
+          });
 
-  if (asignacionesDia.length > 0) {
-    // Combinar todos los horarios
-    const horarios = asignacionesDia
-      .map(a => `${a.horaInicio}-${a.horaFin}`)
-      .join('\n');
-    
-    const centros = [...new Set(asignacionesDia.map(a => a.centro.nombre))].join(', ');
+          if (asignacionesDia.length > 0) {
+            // Combinar todos los horarios
+            const horarios = asignacionesDia
+              .map(a => `${a.horaInicio}-${a.horaFin}`)
+              .join('\n');
+            
+            const centros = [...new Set(asignacionesDia.map(a => a.centro.nombre))].join(', ');
 
-    fila.dias[fechaStr] = {
-      codigo: 'X',
-      estado: 'TRABAJA',
-      centro: centros,
-      horario: horarios,
-      color: 'verde'
-    };
-  } else {
-    // No trabaja, no tiene ausencia
-    fila.dias[fechaStr] = {
-      codigo: '-',
-      estado: 'LIBRE',
-      color: 'gris'
-    };
-  }
-}
+            fila.dias[fechaStr] = {
+              codigo: 'X',
+              estado: 'TRABAJA',
+              centro: centros,
+              horario: horarios,
+              color: 'verde'
+            };
+          } else {
+            // No trabaja, no tiene ausencia
+            fila.dias[fechaStr] = {
+              codigo: '-',
+              estado: 'LIBRE',
+              color: ''
+            };
+          }
+        }
       });
 
       return fila;
@@ -182,5 +210,5 @@ asignacionesDia.sort((a, b) => {
   }
 });
 
-
 module.exports = router;
+ 

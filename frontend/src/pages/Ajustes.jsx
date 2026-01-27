@@ -145,7 +145,7 @@ export default function Ajustes() {
       )}
 
       {/* Vista Desktop */}
-      <div className="hidden md:block" style={{overflowX: 'auto'}}>
+      <div className="hidden md:block overflow-x-auto">
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
@@ -215,7 +215,7 @@ export default function Ajustes() {
       </div>
 
       {/* Vista Móvil */}
-      <div className="md:hidden" style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+      <div className="md:hidden flex flex-col gap-4">
         {usuarios.map(usuario => (
           <div key={usuario.id} style={{
             backgroundColor: 'white',

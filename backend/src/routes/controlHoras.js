@@ -315,7 +315,7 @@ for (const trabajador of trabajadores) {
 
         if (ausenciaDia) {
           // DÍA CON AUSENCIA - Calcular importe
-          const calculoAusencia = calcularImporteAusencia(trabajador, ausenciaDia);
+          const calculoAusencia = await calcularImporteAusencia(trabajador, ausenciaDia);
           const importeDia = calculoAusencia.diasCobrados > 0 
             ? calculoAusencia.importeTotal / calculoAusencia.diasCobrados 
             : 0;
