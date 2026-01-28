@@ -23,6 +23,12 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'grupo-rubio-secret-key-cambiar-en-produccion';
 const { calcularDetalleHoras } = require('../utils/calcularHoras');
+const ausenciaService = require('./services/ausenciaService');
+const { errorHandler, asyncHandler } = require('./middlewares/errorHandler');
+const { validate } = require('./middlewares/validation');
+const { crearAusenciaSchema, actualizarAusenciaSchema } = require('./validators/ausenciaValidators');
+const { loginLimiter, apiLimiter } = require('./middlewares/rateLimiter');
+const { auditLogger } = require('./middlewares/auditLogger');
 // ============================================
 // FUNCIONES AUXILIARES
 // ============================================
@@ -55,6 +61,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
+
+// ============================================
+// FORZAR HTTPS EN PRODUCCIÓN
+// ============================================
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      res.redirect(`https://${req.header('host')}${req.url}`);
+    } else {
+      next();
+    }
+  });
+}
+
+// ============================================
+// RUTAS
+// ============================================
 app.use('/api/informes', informesRoutes);
 app.use('/api/categorias', categoriasRoutes);
 app.use('/api/control-horas', controlHorasRoutes);
@@ -71,17 +94,24 @@ const authMiddleware = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ error: 'Token no proporcionado' });
     }
+    
     const decoded = jwt.verify(token, JWT_SECRET);
-    const usuario = await prisma.usuario.findUnique({ where: { id: decoded.userId } });
+    
+    const usuario = await prisma.usuario.findUnique({ where: { id: decoded.id } });
     if (!usuario || !usuario.activo) {
       return res.status(401).json({ error: 'Usuario no válido' });
     }
+    
     req.user = usuario;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Sesión expirada. Inicia sesión nuevamente.' });
+    }
     return res.status(401).json({ error: 'Token inválido' });
   }
 };
+
 // Middleware solo para administradores
 const adminOnly = (req, res, next) => {
   if (req.user.rol !== 'ADMIN') {
@@ -93,7 +123,8 @@ const adminOnly = (req, res, next) => {
 // ============================================
 // RUTAS: AUTENTICACIÓN
 // ============================================
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+
   try {
     const { email, password } = req.body;
     const usuario = await prisma.usuario.findUnique({ where: { email } });
@@ -113,8 +144,17 @@ app.post('/api/auth/login', async (req, res) => {
       data: { ultimoAcceso: new Date() }
     });
 
-    const token = jwt.sign({ userId: usuario.id, rol: usuario.rol }, JWT_SECRET, { expiresIn: '8h' });
-
+const token = jwt.sign(
+  { 
+    id: usuario.id,
+    email: usuario.email,
+    rol: usuario.rol
+  }, 
+  JWT_SECRET,
+  { 
+    expiresIn: '24h'  // ← Token expira en 24 horas
+  }
+);
     res.json({
       token,
       user: {
@@ -511,7 +551,10 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener trabajador' });
   }
 });
-        app.post('/api/trabajadores', authMiddleware, async (req, res) => {
+        app.post('/api/trabajadores', 
+          authMiddleware,
+            auditLogger('trabajadores'),  // ← CORREGIR
+          async (req, res) => {
           try {
             // ✅ VALIDAR DNI
     if (!validarDNI(req.body.dni)) {
@@ -574,7 +617,10 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
             res.status(500).json({ error: 'Error al eliminar relación' });
           }
         });
-        app.put('/api/trabajadores/:id', authMiddleware, async (req, res) => {
+        app.put('/api/trabajadores/:id', 
+          authMiddleware,
+            auditLogger('trabajadores'),  // ← CORREGIR 
+          async (req, res) => {
           try {
             // ✅ VALIDAR DNI SI VIENE EN EL BODY
     if (req.body.dni && !validarDNI(req.body.dni)) {
@@ -1255,88 +1301,15 @@ await recalcularSemanaTrabajador(trabajadorId, fecha);
           }
         });
 
-        app.post('/api/ausencias', authMiddleware, async (req, res) => {
-          try {
-            const { trabajadorId, tipoAusenciaId, fechaInicio, fechaFin, motivo } = req.body;
-
-            // Calcular días totales
-            const inicio = new Date(fechaInicio);
-            const fin = new Date(fechaFin);
-            const diasTotales = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
-
-            // Crear la ausencia
-            const ausencia = await prisma.ausencia.create({
-              data: {
-                trabajadorId,
-                tipoAusenciaId,
-                fechaInicio: inicio,
-                fechaFin: fin,
-                diasTotales,
-                motivo,
-                estado: 'PENDIENTE'
-              },
-              include: {
-                trabajador: { select: { id: true, nombre: true, apellidos: true } },
-                tipoAusencia: true
-              }
-            });
-
-            // 🔥 NUEVA FUNCIONALIDAD: Buscar asignaciones afectadas
-            const asignacionesAfectadas = await prisma.asignacion.findMany({
-              where: {
-                trabajadorId,
-                fecha: {
-                  gte: inicio,
-                  lte: fin
-                },
-                estado: { notIn: ['CANCELADO', 'COMPLETADO'] }
-              },
-              include: {
-                centro: {
-                  include: {
-                    cliente: true
-                  }
-                }
-              }
-            });
-
-            // Marcar asignaciones con flag de atención (solo si está PENDIENTE)
-            for (const asig of asignacionesAfectadas) {
-              await prisma.asignacion.update({
-                where: { id: asig.id },
-                data: {
-                  requiereAtencion: true,
-                  motivoAtencion: `⚠️ BAJA PENDIENTE: ${ausencia.tipoAusencia.nombre} hasta ${fin.toLocaleDateString('es-ES')}`
-                }
-              });
-            }
-
-            // Agrupar por centro/cliente para respuesta
-            const centrosAfectados = asignacionesAfectadas.reduce((acc, asig) => {
-              const key = asig.centroId;
-              if (!acc[key]) {
-                acc[key] = {
-                  centroId: asig.centroId,
-                  centroNombre: asig.centro.nombre,
-                  clienteNombre: asig.centro.cliente?.nombre || 'Sin cliente',
-                  dias: []
-                };
-              }
-              acc[key].dias.push(asig.fecha.toLocaleDateString('es-ES'));
-              return acc;
-            }, {});
-
-            res.status(201).json({
-              ausencia,
-              centrosAfectados: Object.values(centrosAfectados),
-              totalAsignacionesAfectadas: asignacionesAfectadas.length
-            });
-
-          } catch (error) {
-            console.error('Error creando ausencia:', error);
-            res.status(500).json({ error: 'Error creando ausencia' });
-          }
-        });
+        app.post('/api/ausencias', 
+  authMiddleware,
+  auditLogger('ausencias'),  // ← AÑADIR
+  validate(crearAusenciaSchema),
+  asyncHandler(async (req, res) => {
+    const resultado = await ausenciaService.crearAusencia(req.body);
+    res.status(201).json(resultado);
+  })
+);
 
         // GET /api/ausencias/:id/calcular-importe - Calcula el importe de una ausencia
 app.get('/api/ausencias/:id/calcular-importe', authMiddleware, async (req, res) => {
@@ -1385,156 +1358,30 @@ app.get('/api/ausencias/:id/calcular-importe', authMiddleware, async (req, res) 
   }
 });
 
-        app.put('/api/ausencias/:id', authMiddleware, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { 
-      trabajadorId,
-      tipoAusenciaId,
-      fechaInicio, 
-      fechaFin, 
-      motivo,
-      observaciones,
-      fechaAltaReal, // ✅ NUEVO
-      numeroParte,
-      contingencia,
-      entidadEmisora
-    } = req.body;
-
-    // Calcular días totales
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
-    const diasTotales = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
-
-    const ausencia = await prisma.ausencia.update({
-      where: { id },
-      data: {
-        trabajadorId,
-        tipoAusenciaId,
-        fechaInicio: inicio,
-        fechaFin: fin,
-        fechaAltaReal: fechaAltaReal ? new Date(fechaAltaReal) : null, // ✅ NUEVO
-        diasTotales,
-        motivo,
-        observaciones,
-        numeroParte,
-        contingencia,
-        entidadEmisora
-      },
-              include: {
-                trabajador: { select: { id: true, nombre: true, apellidos: true } },
-                tipoAusencia: true
-              }
-            });
-
-            res.json(ausencia);
-          } catch (error) {
-            console.error('Error actualizando ausencia:', error);
-            res.status(500).json({ error: 'Error actualizando ausencia' });
-          }
-        });
-        app.put('/api/ausencias/:id/rechazar', authMiddleware, async (req, res) => {
-          try {
-            const ausencia = await prisma.ausencia.update({
-              where: { id: parseInt(req.params.id) },
-              data: {
-                estado: 'RECHAZADA',
-                aprobadoPorId: req.user.id,
-                fechaAprobacion: new Date(),
-                notas: req.body.motivo
-              }
-            });
-
-            res.json(ausencia);
-          } catch (error) {
-            console.error('Error rechazando ausencia:', error);
-            res.status(500).json({ error: 'Error rechazando ausencia' });
-          }
-        });
-        app.put('/api/ausencias/:id/aprobar', authMiddleware, async (req, res) => {
-          try {
-            const id = parseInt(req.params.id);
-
-            // Obtener la ausencia
-            const ausenciaActual = await prisma.ausencia.findUnique({
-              where: { id },
-              include: { tipoAusencia: true }
-            });
-
-            if (!ausenciaActual) {
-              return res.status(404).json({ error: 'Ausencia no encontrada' });
-            }
-
-            // Aprobar la ausencia
-            const ausencia = await prisma.ausencia.update({
-              where: { id },
-              data: {
-                estado: 'APROBADA',
-                aprobadoPorId: req.user.id,
-                fechaAprobacion: new Date()
-              },
-              include: {
-                trabajador: { select: { id: true, nombre: true, apellidos: true } },
-                tipoAusencia: true
-              }
-            });
-
-            // 🔥 NUEVA FUNCIONALIDAD: Actualizar asignaciones a URGENTE
-            const asignacionesAfectadas = await prisma.asignacion.findMany({
-              where: {
-                trabajadorId: ausencia.trabajadorId,
-                fecha: {
-                  gte: ausencia.fechaInicio,
-                  lte: ausencia.fechaFin
-                },
-                estado: { notIn: ['CANCELADO', 'COMPLETADO'] }
-              },
-              include: {
-                centro: {
-                  include: {
-                    cliente: true
-                  }
-                }
-              }
-            });
-
-            // Marcar como URGENTE (aprobada)
-            for (const asig of asignacionesAfectadas) {
-              await prisma.asignacion.update({
-                where: { id: asig.id },
-                data: {
-                  requiereAtencion: true,
-                  motivoAtencion: `🔴 URGENTE - BAJA APROBADA: ${ausencia.tipoAusencia.nombre} - Requiere suplencia`
-                }
-              });
-            }
-
-            // Agrupar centros afectados
-            const centrosAfectados = asignacionesAfectadas.reduce((acc, asig) => {
-              const key = asig.centroId;
-              if (!acc[key]) {
-                acc[key] = {
-                  centroId: asig.centroId,
-                  centroNombre: asig.centro.nombre,
-                  clienteNombre: asig.centro.cliente?.nombre || 'Sin cliente',
-                  dias: []
-                };
-              }
-              acc[key].dias.push(asig.fecha.toLocaleDateString('es-ES'));
-              return acc;
-            }, {});
-
-            res.json({
-              ausencia,
-              centrosAfectados: Object.values(centrosAfectados),
-              totalAsignacionesAfectadas: asignacionesAfectadas.length
-            });
-
-          } catch (error) {
-            console.error('Error aprobando ausencia:', error);
-            res.status(500).json({ error: 'Error aprobando ausencia' });
-          }
-        });
+        app.put('/api/ausencias/:id', 
+  authMiddleware,
+  auditLogger('ausencias'),  // ← AÑADIR 
+  validate(actualizarAusenciaSchema),
+  asyncHandler(async (req, res) => {
+    const ausencia = await ausenciaService.actualizarAusencia(parseInt(req.params.id), req.body);
+    res.json(ausencia);
+  })
+);
+        app.put('/api/ausencias/:id/rechazar', 
+  authMiddleware,
+    asyncHandler(async (req, res) => {
+    const ausencia = await ausenciaService.rechazarAusencia(parseInt(req.params.id), req.user.id, req.body.motivo);
+    res.json(ausencia);
+  })
+);
+       app.put('/api/ausencias/:id/aprobar', 
+  authMiddleware,
+  auditLogger('ausencias'),  // ← AÑADIR
+  asyncHandler(async (req, res) => {
+    const resultado = await ausenciaService.aprobarAusencia(parseInt(req.params.id), req.user.id);
+    res.json(resultado);
+  })
+);
         // ============================================
 // ARCHIVAR/DESARCHIVAR AUSENCIAS
 // ============================================
@@ -2705,6 +2552,26 @@ app.post('/api/setup-admin', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============================================
+// KEEP-ALIVE: Mantener servidor despierto
+// ============================================
+if (process.env.NODE_ENV === 'production') {
+  const BACKEND_URL = process.env.BACKEND_URL || 'https://grupo-rubio-backend.onrender.com';
+  
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/health`);
+      if (response.ok) {
+        console.log('✅ Keep-alive ping successful');
+      }
+    } catch (error) {
+      console.log('⚠️ Keep-alive ping failed:', error.message);
+    }
+  }, 10 * 60 * 1000); // Cada 10 minutos
+  
+  console.log('🔄 Keep-alive activado (ping cada 10 min)');
+}
 // ============================================
 // RUTA: CALCULAR NÓMINA DE TRABAJADOR
 // ============================================
@@ -3153,3 +3020,5 @@ app.get('/api/dashboard/ejecutivo', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Error generando dashboard ejecutivo' });
   }
 });
+
+app.use(errorHandler);

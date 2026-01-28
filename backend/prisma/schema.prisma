@@ -228,6 +228,7 @@ model Ausencia {
   trabajador      Trabajador     @relation(fields: [trabajadorId], references: [id])
 
   @@index([archivada])
+  @@index([trabajadorId, estado, fechaInicio, fechaFin])  // ← AÑADIR ESTA LÍNEA
   @@map("ausencias")
 }
 
@@ -260,10 +261,14 @@ model Asignacion {
   // AÑADIR ESTA RELACIÓN (diferente de creadoPor):
   editadoPor    Usuario?  @relation("EditorAsignacion", fields: [editadoPorId], references: [id])
 
-  @@unique([trabajadorId, centroId, fecha, horaInicio])
-  @@index([centroId, fecha], map: "idx_asignaciones_centro_fecha")
-  @@index([trabajadorId, fecha], map: "idx_asignaciones_trabajador_fecha")
-  @@map("asignaciones")
+ // Índices optimizados
+@@unique([trabajadorId, centroId, fecha, horaInicio])
+@@index([trabajadorId, fecha])
+@@index([centroId, fecha])
+@@index([fecha, estado])  // ← NUEVO: Filtros planificación
+@@index([centroId, fecha, estado])  // ← NUEVO: Vista por cliente
+@@index([trabajadorId, estado, fecha])  // ← NUEVO: Estado trabajador
+@@map("asignaciones")
 }
 
 model RegistroHoras {
@@ -307,10 +312,6 @@ model HistorialCambios {
   usuarioId       Int?     @map("usuario_id")
   ipAddress       String?  @map("ip_address")
   createdAt       DateTime @default(now()) @map("created_at")
-  tipo_operacion  String   @default("UPDATE") @db.VarChar(20)
-  ip_usuario      String?  @db.VarChar(45)
-  datos_antes     Json?
-  datos_despues   Json?
   usuario         Usuario? @relation(fields: [usuarioId], references: [id])
 
   @@index([tablaAfectada, registroId, createdAt(sort: Desc)], map: "idx_historial_tabla_registro")

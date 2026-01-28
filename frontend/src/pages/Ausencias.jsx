@@ -118,10 +118,18 @@ function Ausencias({ api }) {
 
       setModalOpen(false);
       cargarDatos();
-    } catch (err) {
-      console.error('Error guardando ausencia:', err);
-      alert('Error al guardar ausencia');
-    }
+    } catch (error) {
+  console.error('Error guardando ausencia:', error);
+  
+  // Mostrar mensaje específico si es error de validación
+  if (error.error) {
+    alert(error.error + (error.ausenciasSolapadas ? '\n\nConflicto con: ' + error.ausenciasSolapadas : ''));
+  } else if (error.detalles) {
+    alert('Errores:\n' + error.detalles.join('\n'));
+  } else {
+    alert('Error al guardar ausencia');
+  }
+}
   };
 
   const aprobar = async (id) => {
