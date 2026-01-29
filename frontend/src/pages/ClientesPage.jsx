@@ -22,15 +22,14 @@ export default function ClientesPage({ api }) {
   })
 
   const [formCentro, setFormCentro] = useState({
-    nombre: '',
-    direccion: '',
-    horarioApertura: '06:00',
-    horarioCierre: '22:00',
-    horarioLimpiezaInicio: '',
-    horarioLimpiezaFin: '',
-    flexibilidadHoraria: 'FLEXIBLE',
-    tipoServicio: 'FRECUENTE'
-  })
+  nombre: '',
+  direccion: '',
+  horarioApertura: '06:00',
+  horarioCierre: '22:00',
+  tipoHorarioLimpieza: 'FLEXIBLE',
+  horariosLimpieza: [{ inicio: '08:00', fin: '14:00' }],
+  tipoServicio: 'FRECUENTE'
+})
 
   useEffect(() => {
     cargarDatos()
@@ -74,35 +73,39 @@ export default function ClientesPage({ api }) {
   }
 
   const abrirModalCentro = (cliente) => {
-    setErrorCentro('') // ✅ NUEVO: Limpiar error al abrir modal
-    setClienteSeleccionado(cliente)
-    setCentroEditando(null)
-    setFormCentro({
-      nombre: '',
-      direccion: '',
-      horarioApertura: '06:00',
-      horarioCierre: '22:00',
-      horarioLimpiezaInicio: '',
-      horarioLimpiezaFin: '',
-      flexibilidadHoraria: 'FLEXIBLE',
-      tipoServicio: 'FRECUENTE'
-    })
+  setErrorCentro('')
+  setClienteSeleccionado(cliente)
+  setCentroEditando(null)
+  setFormCentro({
+    nombre: '',
+    direccion: '',
+    horarioApertura: '06:00',
+    horarioCierre: '22:00',
+    tipoHorarioLimpieza: 'FLEXIBLE',
+    horariosLimpieza: [{ inicio: '08:00', fin: '14:00' }],
+    tipoServicio: 'FRECUENTE'
+  })
     setModalCentroOpen(true)
   }
 
   const abrirModalEditarCentro = (centro) => {
-    setErrorCentro('') // ✅ NUEVO: Limpiar error al abrir modal
-    setCentroEditando(centro)
-    setFormCentro({
-      nombre: centro.nombre,
-      direccion: centro.direccion || '',
-      horarioApertura: centro.horarioApertura || '06:00',
-      horarioCierre: centro.horarioCierre || '22:00',
-      horarioLimpiezaInicio: centro.horarioLimpiezaInicio || '',
-      horarioLimpiezaFin: centro.horarioLimpiezaFin || '',
-      flexibilidadHoraria: centro.flexibilidadHoraria || 'FLEXIBLE',
-      tipoServicio: centro.tipoServicio || 'FRECUENTE'
-    })
+  setErrorCentro('')
+  setCentroEditando(centro)
+  
+  // Cargar horarios limpieza si existen
+  const horariosLimpieza = centro.horariosLimpieza && centro.horariosLimpieza.length > 0
+    ? centro.horariosLimpieza.map(h => ({ inicio: h.inicio, fin: h.fin }))
+    : [{ inicio: '08:00', fin: '14:00' }];
+  
+  setFormCentro({
+    nombre: centro.nombre,
+    direccion: centro.direccion || '',
+    horarioApertura: centro.horarioApertura || '06:00',
+    horarioCierre: centro.horarioCierre || '22:00',
+    tipoHorarioLimpieza: centro.tipoHorarioLimpieza || 'FLEXIBLE',
+    horariosLimpieza: horariosLimpieza,
+    tipoServicio: centro.tipoServicio || 'FRECUENTE'
+  })
     setModalCentroOpen(true)
   }
 
@@ -126,31 +129,80 @@ export default function ClientesPage({ api }) {
     }
   }
 
-  const guardarCentro = async (e) => {
-    e.preventDefault()
-    setErrorCentro('') // ✅ NUEVO: Limpiar error previo
-    
-    try {
-      const datos = {
-        ...formCentro,
-        clienteId: clienteSeleccionado?.id
-      }
+  // Funciones para gestionar horarios limpieza múltiples
+const añadirHorarioLimpieza = () => {
+  setFormCentro({
+    ...formCentro,
+    horariosLimpieza: [...formCentro.horariosLimpieza, { inicio: '08:00', fin: '14:00' }]
+  });
+};
 
-      if (centroEditando) {
-        await api.put(`/centros/${centroEditando.id}`, datos)
-      } else {
-        await api.post('/centros', datos)
-      }
-      
-      setModalCentroOpen(false)
-      cargarDatos()
-    } catch (err) {
-      console.error('Error guardando centro:', err)
-      // ✅ NUEVO: Mostrar error en pantalla sin alert
-      const mensaje = err.error || err.message || 'Error al guardar centro'
-      setErrorCentro(mensaje)
-    }
+const eliminarHorarioLimpieza = (index) => {
+  if (formCentro.horariosLimpieza.length === 1) {
+    alert('Debe haber al menos un horario');
+    return;
   }
+  const nuevosHorarios = formCentro.horariosLimpieza.filter((_, i) => i !== index);
+  setFormCentro({ ...formCentro, horariosLimpieza: nuevosHorarios });
+};
+
+const actualizarHorarioLimpieza = (index, campo, valor) => {
+  const nuevosHorarios = [...formCentro.horariosLimpieza];
+  nuevosHorarios[index][campo] = valor;
+  setFormCentro({ ...formCentro, horariosLimpieza: nuevosHorarios });
+};
+
+  const guardarCentro = async (e) => {
+  e.preventDefault()
+  setErrorCentro('')
+  
+  // Validar horarios si es FIJO
+  if (formCentro.tipoHorarioLimpieza === 'FIJO') {
+    const horariosValidos = formCentro.horariosLimpieza.every(h => {
+      if (!h.inicio || !h.fin) {
+        setErrorCentro('Todos los horarios deben tener inicio y fin');
+        return false;
+      }
+      if (h.inicio >= h.fin) {
+        setErrorCentro('La hora de fin debe ser posterior a la hora de inicio');
+        return false;
+      }
+      return true;
+    });
+    
+    if (!horariosValidos) return;
+  }
+  
+  try {
+    const datos = {
+      nombre: formCentro.nombre,
+      direccion: formCentro.direccion,
+      horarioApertura: formCentro.horarioApertura,
+      horarioCierre: formCentro.horarioCierre,
+      tipoHorarioLimpieza: formCentro.tipoHorarioLimpieza,
+      tipoServicio: formCentro.tipoServicio,
+      clienteId: clienteSeleccionado?.id
+    };
+    
+    // Solo enviar horarios si es FIJO
+    if (formCentro.tipoHorarioLimpieza === 'FIJO') {
+      datos.horariosLimpieza = formCentro.horariosLimpieza;
+    }
+
+    if (centroEditando) {
+      await api.put(`/centros/${centroEditando.id}`, datos)
+    } else {
+      await api.post('/centros', datos)
+    }
+    
+    setModalCentroOpen(false)
+    cargarDatos()
+  } catch (err) {
+    console.error('Error guardando centro:', err)
+    const mensaje = err.error || err.message || 'Error al guardar centro'
+    setErrorCentro(mensaje)
+  }
+}
 
 
     return (
@@ -384,74 +436,109 @@ export default function ClientesPage({ api }) {
       />
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Horario apertura</label>
-        <input
-          type="time"
-          value={formCentro.horarioApertura}
-          onChange={(e) => setFormCentro({ ...formCentro, horarioApertura: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Horario cierre</label>
-        <input
-          type="time"
-          value={formCentro.horarioCierre}
-          onChange={(e) => setFormCentro({ ...formCentro, horarioCierre: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-    </div>
+    {/* Horarios informativos */}
+<div className="grid grid-cols-2 gap-4">
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">Horario apertura</label>
+    <input
+      type="time"
+      value={formCentro.horarioApertura}
+      onChange={(e) => setFormCentro({ ...formCentro, horarioApertura: e.target.value })}
+      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">Horario cierre</label>
+    <input
+      type="time"
+      value={formCentro.horarioCierre}
+      onChange={(e) => setFormCentro({ ...formCentro, horarioCierre: e.target.value })}
+      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+</div>
 
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Horario Limpieza Inicio</label>
-        <input
-          type="time"
-          value={formCentro.horarioLimpiezaInicio || ''}
-          onChange={(e) => setFormCentro({ ...formCentro, horarioLimpiezaInicio: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Horario Limpieza Fin</label>
-        <input
-          type="time"
-          value={formCentro.horarioLimpiezaFin || ''}
-          onChange={(e) => setFormCentro({ ...formCentro, horarioLimpiezaFin: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-    </div>
+{/* Tipo de horario limpieza */}
+<div>
+  <label className="block text-sm font-medium text-slate-700 mb-3">Horario de Limpieza *</label>
+  <div className="flex gap-4">
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        name="tipoHorarioLimpieza"
+        value="FLEXIBLE"
+        checked={formCentro.tipoHorarioLimpieza === 'FLEXIBLE'}
+        onChange={(e) => setFormCentro({ ...formCentro, tipoHorarioLimpieza: e.target.value })}
+        className="w-4 h-4 text-blue-600"
+      />
+      <span className="text-sm">Horario Flexible</span>
+    </label>
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        name="tipoHorarioLimpieza"
+        value="FIJO"
+        checked={formCentro.tipoHorarioLimpieza === 'FIJO'}
+        onChange={(e) => setFormCentro({ ...formCentro, tipoHorarioLimpieza: e.target.value })}
+        className="w-4 h-4 text-blue-600"
+      />
+      <span className="text-sm">Horario Fijo</span>
+    </label>
+  </div>
+  <p className="text-xs text-slate-500 mt-1">
+    {formCentro.tipoHorarioLimpieza === 'FLEXIBLE' 
+      ? 'Los trabajadores pueden tener cualquier horario en este centro.'
+      : 'Los horarios de trabajo deben estar dentro de los rangos definidos.'}
+  </p>
+</div>
 
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Flexibilidad</label>
-        <select
-          value={formCentro.flexibilidadHoraria || 'FLEXIBLE'}
-          onChange={(e) => setFormCentro({ ...formCentro, flexibilidadHoraria: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="FLEXIBLE">Flexible</option>
-          <option value="PARCIAL">Parcial (±1h)</option>
-          <option value="ESTRICTO">Estricto</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Tipo Servicio</label>
-        <select
-          value={formCentro.tipoServicio || 'FRECUENTE'}
-          onChange={(e) => setFormCentro({ ...formCentro, tipoServicio: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="FRECUENTE">Frecuente</option>
-          <option value="PUNTUAL">Puntual</option>
-          <option value="BAJO_DEMANDA">Bajo Demanda</option>
-        </select>
-      </div>
+{/* Horarios fijos (solo si es FIJO) */}
+{formCentro.tipoHorarioLimpieza === 'FIJO' && (
+  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+    <label className="block text-sm font-medium text-slate-700 mb-3">Rangos horarios permitidos</label>
+    <div className="space-y-3">
+      {formCentro.horariosLimpieza.map((horario, index) => (
+        <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-slate-200">
+          <div className="flex-1 grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">Desde</label>
+              <input
+                type="time"
+                value={horario.inicio}
+                onChange={(e) => actualizarHorarioLimpieza(index, 'inicio', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">Hasta</label>
+              <input
+                type="time"
+                value={horario.fin}
+                onChange={(e) => actualizarHorarioLimpieza(index, 'fin', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
+    
+  </div>
+)}
+
+{/* Tipo Servicio */}
+<div>
+  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo Servicio</label>
+  <select
+    value={formCentro.tipoServicio || 'FRECUENTE'}
+    onChange={(e) => setFormCentro({ ...formCentro, tipoServicio: e.target.value })}
+    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="FRECUENTE">Frecuente</option>
+    <option value="PUNTUAL">Puntual</option>
+    <option value="BAJO_DEMANDA">Bajo Demanda</option>
+  </select>
+</div>
 
     <div className="flex gap-3 pt-4">
       <button

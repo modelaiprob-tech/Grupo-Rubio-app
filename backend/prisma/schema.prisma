@@ -125,15 +125,14 @@ model CentroTrabajo {
   localidad               String?
   telefono                String?
   contacto                String?
-  horarioApertura         String?             @map("horario_apertura")
-  horarioCierre           String?             @map("horario_cierre")
+  horarioApertura         String?
+  horarioCierre           String?
+  tipoHorarioLimpieza     String @default("FLEXIBLE") @map("tipo_horario_limpieza") // "FLEXIBLE" o "FIJO"
   activo                  Boolean             @default(true)
   notas                   String?
   createdAt               DateTime            @default(now()) @map("created_at")
   updatedAt               DateTime            @updatedAt @map("updated_at")
-  horario_limpieza_inicio String?             @db.VarChar(10)
-  horario_limpieza_fin    String?             @db.VarChar(10)
-  flexibilidad_horaria    String?             @default("FLEXIBLE") @db.VarChar(20)
+  horariosLimpieza        HorarioLimpieza[]
   tipo_servicio           String?             @default("FRECUENTE") @db.VarChar(20)
   frecuencia              String?             @db.VarChar(30)
   dias_servicio           String?             @db.VarChar(50)
@@ -428,6 +427,19 @@ model AcuerdoIndividual {
 
   @@index([trabajadorId, activo])
   @@map("acuerdos_individuales")
+}
+model HorarioLimpieza {
+  id        Int           @id @default(autoincrement())
+  centroId  Int           @map("centro_id")
+  inicio    String        // "08:00"
+  fin       String        // "14:00"
+  orden     Int           @default(1)  // Para ordenar horarios partidos
+  activo    Boolean       @default(true)
+  createdAt DateTime      @default(now()) @map("created_at")
+  centro    CentroTrabajo @relation(fields: [centroId], references: [id], onDelete: Cascade)
+
+  @@index([centroId, activo])
+  @@map("horarios_limpieza")
 }
 
 enum Rol {

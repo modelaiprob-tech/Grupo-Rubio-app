@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './Informes.css';
 import InformeNominaDetallada from './InformeNominaDetallada';
+import InformacionTrabajador from './InformacionTrabajador';
 
 function Informes({ api }) {
   const [tipoInforme, setTipoInforme] = useState(null);
@@ -52,18 +53,7 @@ function Informes({ api }) {
           params.append('fecha', fecha);
           break;
 
-        case 'horas-trabajador':
-          if (!trabajadorId) {
-            alert('Selecciona un trabajador');
-            setLoading(false);
-            return;
-          }
-          endpoint = '/informes/horas-trabajador';
-          params.append('trabajadorId', trabajadorId);
-          params.append('mes', mes);
-          params.append('año', año);
-          break;
-
+      
         case 'horas-cliente':
           if (!clienteId) {
             alert('Selecciona un cliente');
@@ -135,19 +125,16 @@ return (
           </p>
         </button>
 
-        {/* TARJETA 2: Horas por Trabajador */}
-        <button
-          onClick={() => setTipoInforme('horas-trabajador')}
-          className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
-        >
-          <div className="flex items-start justify-between mb-4">
-            
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Horas por Trabajador</h2>
-          <p className="text-green-100 text-sm">
-            Desglose detallado de horas trabajadas por empleado: normales, extras, nocturnas y festivos
-          </p>
-        </button>
+        {/* TARJETA 2: Info Trabajador */}
+<button
+  onClick={() => setTipoInforme('info-trabajador')}
+  className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
+>
+  <h2 className="text-2xl font-bold mb-2"> Información del Trabajador</h2>
+  <p className="text-green-100 text-sm">
+    Vista completa: distribución por cliente, horas detalladas y nómina en un solo lugar
+  </p>
+</button>
 
         {/* TARJETA 3: Horas por Cliente */}
         <button
@@ -163,22 +150,9 @@ return (
           </p>
         </button>
 
-      
-
-        {/* TARJETA 5: Nómina Detallada */}
-        <button
-          onClick={() => setTipoInforme('nomina-detallada')}
-          className="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
-        >
-          <h2 className="text-2xl font-bold mb-2"> Nómina Detallada</h2>
-          <p className="text-indigo-100 text-sm">
-            Desglose día a día de horas normales, nocturnas, festivas, extras y cálculo exacto de nómina bruta
-          </p>
-        </button>
 
 
-
-        {/* TARJETA 6: Calendario Empresa */}
+        {/* TARJETA 5: Calendario Empresa */}
 <button
   onClick={() => setTipoInforme('calendario-empresa')}
   className="bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-left"
@@ -207,7 +181,7 @@ return (
         </button>
 
         {/* Panel de filtros - NO mostrar para nómina detallada */}
-        {tipoInforme !== 'nomina-detallada' && (
+{tipoInforme !== 'nomina-detallada' && tipoInforme !== 'info-trabajador' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-xl font-bold text-slate-900 mb-4">
               {tipoInforme === 'estado-trabajadores' && ' Estado Diario de Trabajadores'}
@@ -232,50 +206,6 @@ return (
                 </div>
               )}
 
-              {tipoInforme === 'horas-trabajador' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Trabajador</label>
-                    <select
-                      value={trabajadorId}
-                      onChange={(e) => setTrabajadorId(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {trabajadores.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.nombre} {t.apellidos}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Mes</label>
-                    <select
-                      value={mes}
-                      onChange={(e) => setMes(parseInt(e.target.value))}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    >
-                      {Array.from({length: 12}, (_, i) => (
-                        <option key={i+1} value={i+1}>
-                          {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Año</label>
-                    <input
-                      type="number"
-                      value={año}
-                      onChange={(e) => setAño(parseInt(e.target.value))}
-                      min="2020"
-                      max="2030"
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                  </div>
-                </div>
-              )}
 
               {tipoInforme === 'horas-cliente' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -413,19 +343,16 @@ return (
           </div>
         )}
 
-        {/* NÓMINA DETALLADA - Renderizado independiente */}
-        {tipoInforme === 'nomina-detallada' && (
-          <InformeNominaDetallada api={api} />
-        )}
+        {/* INFO TRABAJADOR - Renderizado independiente */}
+{tipoInforme === 'info-trabajador' && (
+  <InformacionTrabajador api={api} />
+)}
 
         {/* RESTO DE INFORMES - Requieren generar datos */}
         {datos && !loading && tipoInforme !== 'nomina-detallada' && (
           <div className="resultados-informe">
             {tipoInforme === 'estado-trabajadores' && (
               <InformeEstadoTrabajadores datos={datos} />
-            )}
-            {tipoInforme === 'horas-trabajador' && (
-              <InformeHorasTrabajador datos={datos} />
             )}
             {tipoInforme === 'horas-cliente' && (
               <InformeHorasCliente datos={datos} />
@@ -539,152 +466,9 @@ function InformeEstadoTrabajadores({ datos }) {
   );
 }
 
-function InformeHorasTrabajador({ datos }) {
-  return (
-    <div className="informe-card">
-      <h2> Informe de Horas - {datos.trabajador.nombre}</h2>
-      <p className="subtitulo">{datos.periodo.mesNombre} {datos.periodo.año}</p>
 
-      <div className="info-trabajador">
-        <p><strong>Categoría:</strong> {datos.trabajador.categoria}</p>
-        <p><strong>Horas Contrato:</strong> {datos.trabajador.horasContrato}h/semana</p>
-      </div>
 
-      <div className="stats-grid">
-        <div className="stat-box normales">
-          <span className="stat-numero">{datos.totales.horasNormales}h</span>
-          <span className="stat-label">Horas Normales</span>
-        </div>
-        <div className="stat-box extras">
-          <span className="stat-numero">{datos.totales.horasExtras}h</span>
-          <span className="stat-label">Horas Extras</span>
-        </div>
-        <div className="stat-box nocturnas">
-          <span className="stat-numero">{datos.totales.horasNocturnas}h</span>
-          <span className="stat-label">Horas Nocturnas</span>
-        </div>
-        <div className="stat-box festivas">
-          <span className="stat-numero">{datos.totales.horasFestivas}h</span>
-          <span className="stat-label">Horas Festivas</span>
-        </div>
-        <div className="stat-box total">
-          <span className="stat-numero">{datos.totales.totalHoras}h</span>
-          <span className="stat-label">Total Horas</span>
-        </div>
-      </div>
 
-      <div className="detalle-seccion">
-        <h3> Desglose Semanal</h3>
-        <table className="tabla-informe">
-          <thead>
-            <tr>
-              <th>Semana</th>
-              <th>Normales</th>
-              <th>Extras</th>
-              <th>Nocturnas</th>
-              <th>Festivas</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(datos.desgloseSemanal).map((semana) => (
-              <tr key={semana}>
-                <td>{semana}</td>
-                <td>{datos.desgloseSemanal[semana].normales.toFixed(2)}h</td>
-                <td>{datos.desgloseSemanal[semana].extras.toFixed(2)}h</td>
-                <td>{datos.desgloseSemanal[semana].nocturnas.toFixed(2)}h</td>
-                <td>{datos.desgloseSemanal[semana].festivas.toFixed(2)}h</td>
-                <td><strong>{datos.desgloseSemanal[semana].total.toFixed(2)}h</strong></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="detalle-seccion">
-        <h3> Detalle por Día</h3>
-        <table className="tabla-informe">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Cliente/Centro</th>
-              <th>Normales</th>
-              <th>Extras</th>
-              <th>Nocturnas</th>
-              <th>Festivas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos.detallesDias.map((dia, idx) => (
-              <tr key={idx}>
-                <td>{new Date(dia.fecha).toLocaleDateString('es-ES')}</td>
-                <td>{dia.cliente} - {dia.centro}</td>
-                <td>{dia.horasNormales}h</td>
-                <td>{dia.horasExtras > 0 ? `${dia.horasExtras}h` : '-'}</td>
-                <td>{dia.horasNocturnas > 0 ? `${dia.horasNocturnas}h` : '-'}</td>
-                <td>{dia.horasFestivas > 0 ? `${dia.horasFestivas}h` : '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function InformeHorasCliente({ datos }) {
-  return (
-    <div className="informe-card">
-      <h2> Informe de Facturación - {datos.cliente.nombre}</h2>
-      <p className="subtitulo">{datos.periodo.mesNombre} {datos.periodo.año}</p>
-
-      <div className="info-cliente">
-        <p><strong>CIF:</strong> {datos.cliente.cif}</p>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-box total">
-          <span className="stat-numero">{datos.totales.totalHoras}h</span>
-          <span className="stat-label">Total Horas</span>
-        </div>
-        <div className="stat-box coste">
-          <span className="stat-numero">{datos.totales.costeTotal.toFixed(2)}€</span>
-          <span className="stat-label">Coste Total</span>
-        </div>
-      </div>
-
-      <div className="detalle-seccion">
-        <h3> Desglose por Centro</h3>
-        <table className="tabla-informe">
-          <thead>
-            <tr>
-              <th>Centro</th>
-              <th>Total Horas</th>
-              <th>Normales</th>
-              <th>Extras</th>
-              <th>Nocturnas</th>
-              <th>Festivas</th>
-              <th>Coste</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos.desglosePorCentro.map((centro, idx) => (
-              <tr key={idx}>
-                <td>{centro.centro}</td>
-                <td><strong>{centro.totalHoras}h</strong></td>
-                <td>{centro.horasNormales}h</td>
-                <td>{centro.horasExtras}h</td>
-                <td>{centro.horasNocturnas}h</td>
-                <td>{centro.horasFestivas}h</td>
-                <td><strong>{centro.costeTotal.toFixed(2)}€</strong></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
 function InformeAusencias({ datos }) {
   return (
@@ -843,5 +627,57 @@ function InformeCalendarioEmpresa({ datos }) {
   );
 }
 }
+function InformeHorasCliente({ datos }) {
+  return (
+    <div className="informe-card">
+      <h2> Informe de Facturación - {datos.cliente.nombre}</h2>
+      <p className="subtitulo">{datos.periodo.mesNombre} {datos.periodo.año}</p>
 
+      <div className="info-cliente">
+        <p><strong>CIF:</strong> {datos.cliente.cif}</p>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-box total">
+          <span className="stat-numero">{datos.totales.totalHoras}h</span>
+          <span className="stat-label">Total Horas</span>
+        </div>
+        <div className="stat-box coste">
+          <span className="stat-numero">{datos.totales.costeTotal.toFixed(2)}€</span>
+          <span className="stat-label">Coste Total</span>
+        </div>
+      </div>
+
+      <div className="detalle-seccion">
+        <h3> Desglose por Centro</h3>
+        <table className="tabla-informe">
+          <thead>
+            <tr>
+              <th>Centro</th>
+              <th>Total Horas</th>
+              <th>Normales</th>
+              <th>Extras</th>
+              <th>Nocturnas</th>
+              <th>Festivas</th>
+              <th>Coste</th>
+            </tr>
+          </thead>
+          <tbody>
+            {datos.desglosePorCentro.map((centro, idx) => (
+              <tr key={idx}>
+                <td>{centro.centro}</td>
+                <td><strong>{centro.totalHoras}h</strong></td>
+                <td>{centro.horasNormales}h</td>
+                <td>{centro.horasExtras}h</td>
+                <td>{centro.horasNocturnas}h</td>
+                <td>{centro.horasFestivas}h</td>
+                <td><strong>{centro.costeTotal.toFixed(2)}€</strong></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 export default Informes;

@@ -18,7 +18,6 @@ import Sidebar from './components/Sidebar';
 import Ajustes from './pages/Ajustes';
 
 
-
   // Componente para tarjeta desplegable de centro sin cubrir
   function CentroSinCubrirCard({ grupo, setCurrentPage }) {
     const [desplegado, setDesplegado] = useState(false);

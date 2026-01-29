@@ -11,7 +11,7 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { calcularTotalHoras, calcularHorasNocturnas, esFestivo, esDomingo } = require('../utils/calcularHoras');
-const horariosFijosRoutes = require('../routes/horariosFijos');
+const horariosFijosRoutes = require('./routes/horariosFijos');
 const informesRoutes = require('./routes/informes');
 const categoriasRoutes = require('./routes/categorias');
 const controlHorasRoutes = require('./routes/controlHoras');
@@ -664,12 +664,16 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
             const clientes = await prisma.cliente.findMany({
               where: { activo: true },
               include: {
-                centrosTrabajo: {
-                  include: {
-                    trabajadoresAsignados: true
-                  }
-                }
-              },
+  centrosTrabajo: {
+    include: {
+      trabajadoresAsignados: true,
+      horariosLimpieza: {
+        where: { activo: true },
+        orderBy: { orden: 'asc' }
+      }
+    }
+  }
+},
               orderBy: { nombre: 'asc' }
             });
             res.json(clientes);
@@ -699,17 +703,23 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
         // RUTAS: CENTROS DE TRABAJO
         // ============================================
         app.get('/api/centros', authMiddleware, async (req, res) => {
-          try {
-            const { clienteId } = req.query;
-            const where = { activo: true };
-            if (clienteId) where.clienteId = parseInt(clienteId);
+  try {
+    const { clienteId } = req.query;
+    const where = { activo: true };
+    if (clienteId) where.clienteId = parseInt(clienteId);
 
-            const centros = await prisma.centroTrabajo.findMany({
-              where,
-              include: { cliente: true },
-              orderBy: { nombre: 'asc' }
-            });
-            res.json(centros);
+    const centros = await prisma.centroTrabajo.findMany({
+      where,
+      include: { 
+  cliente: true,
+  horariosLimpieza: {
+    where: { activo: true },
+    orderBy: { orden: 'asc' }
+  }
+},
+      orderBy: { nombre: 'asc' }
+    });
+    res.json(centros);
           } catch (error) {
             console.error('Error listando centros:', error);
             res.status(500).json({ error: 'Error listando centros' });
@@ -717,48 +727,94 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
         });
 
         app.post('/api/centros', authMiddleware, async (req, res) => {
-          try {
-            const centro = await prisma.centroTrabajo.create({
-              data: {
-                nombre: req.body.nombre,
-                direccion: req.body.direccion,
-                clienteId: req.body.clienteId,
-                horarioApertura: req.body.horarioApertura,
-                horarioCierre: req.body.horarioCierre,
-                horario_limpieza_inicio: req.body.horarioLimpiezaInicio || null,
-                horario_limpieza_fin: req.body.horarioLimpiezaFin || null,
-                flexibilidad_horaria: req.body.flexibilidadHoraria || 'FLEXIBLE',
-                tipo_servicio: req.body.tipoServicio || 'FRECUENTE'
-              }
-            })
-            res.json(centro)
-          } catch (err) {
-            console.error('Error creando centro:', err)
-            res.status(500).json({ error: 'Error al crear centro' })
-          }
-        });
+  try {
+    const centro = await prisma.centroTrabajo.create({
+      data: {
+        nombre: req.body.nombre,
+        direccion: req.body.direccion,
+        clienteId: req.body.clienteId,
+        horarioApertura: req.body.horarioApertura,
+        horarioCierre: req.body.horarioCierre,
+        tipoHorarioLimpieza: req.body.tipoHorarioLimpieza || 'FLEXIBLE'
+      }
+    });
+
+    // Crear horarios limpieza si es FIJO
+    if (req.body.tipoHorarioLimpieza === 'FIJO' && req.body.horariosLimpieza?.length > 0) {
+      await Promise.all(
+        req.body.horariosLimpieza.map((h, index) =>
+          prisma.horarioLimpieza.create({
+            data: {
+              centroId: centro.id,
+              inicio: h.inicio,
+              fin: h.fin,
+              orden: index + 1
+            }
+          })
+        )
+      );
+    }
+
+    res.json(centro);
+  } catch (err) {
+    console.error('Error creando centro:', err);
+    res.status(500).json({ error: 'Error al crear centro' });
+  }
+});
         app.put('/api/centros/:id', authMiddleware, async (req, res) => {
-          try {
-            const centro = await prisma.centroTrabajo.update({
-              where: { id: parseInt(req.params.id) },
-              data: {
-                nombre: req.body.nombre,
-                direccion: req.body.direccion,
-                horarioApertura: req.body.horarioApertura,
-                horarioCierre: req.body.horarioCierre,
-                horario_limpieza_inicio: req.body.horarioLimpiezaInicio || null,
-                horario_limpieza_fin: req.body.horarioLimpiezaFin || null,
-                flexibilidad_horaria: req.body.flexibilidadHoraria || 'FLEXIBLE',
-                tipo_servicio: req.body.tipoServicio || 'FRECUENTE'
-              },
-              include: { cliente: true }
-            });
-            res.json(centro);
-          } catch (err) {
-            console.error('Error actualizando centro:', err);
-            res.status(500).json({ error: 'Error al actualizar centro' });
-          }
-        });
+  try {
+    const centroId = parseInt(req.params.id);
+
+    // Actualizar centro
+    const centro = await prisma.centroTrabajo.update({
+      where: { id: centroId },
+      data: {
+        nombre: req.body.nombre,
+        direccion: req.body.direccion,
+        horarioApertura: req.body.horarioApertura,
+        horarioCierre: req.body.horarioCierre,
+        tipoHorarioLimpieza: req.body.tipoHorarioLimpieza || 'FLEXIBLE',
+        tipo_servicio: req.body.tipoServicio || 'FRECUENTE'
+      },
+      include: { cliente: true }
+    });
+
+    // Actualizar horarios limpieza
+    if (req.body.tipoHorarioLimpieza === 'FIJO' && req.body.horariosLimpieza?.length > 0) {
+      // Desactivar horarios anteriores
+      await prisma.horarioLimpieza.updateMany({
+        where: { centroId: centroId },
+        data: { activo: false }
+      });
+
+      // Crear nuevos horarios
+      await Promise.all(
+        req.body.horariosLimpieza.map((h, index) =>
+          prisma.horarioLimpieza.create({
+            data: {
+              centroId: centroId,
+              inicio: h.inicio,
+              fin: h.fin,
+              orden: index + 1,
+              activo: true
+            }
+          })
+        )
+      );
+    } else if (req.body.tipoHorarioLimpieza === 'FLEXIBLE') {
+      // Si cambia a FLEXIBLE, desactivar todos los horarios
+      await prisma.horarioLimpieza.updateMany({
+        where: { centroId: centroId },
+        data: { activo: false }
+      });
+    }
+
+    res.json(centro);
+  } catch (err) {
+    console.error('Error actualizando centro:', err);
+    res.status(500).json({ error: 'Error al actualizar centro' });
+  }
+});
         // ============================================
         // RUTAS: ASIGNACIONES (PLANIFICACIÓN)
         // ============================================
@@ -835,6 +891,25 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
               return res.status(400).json({ error: 'El trabajador tiene una ausencia aprobada' });
             }
 
+            // Validar horario dentro del rango del centro
+const centro = await prisma.centroTrabajo.findUnique({
+  where: { id: centroId },
+  include: { 
+    horariosLimpieza: {
+      where: { activo: true },
+      orderBy: { orden: 'asc' }
+    }
+  }
+});
+
+
+const { validarHorarioEnCentro } = require('../utils/validarHorarioLimpieza');
+const validacion = validarHorarioEnCentro(centro, horaInicio, horaFin);
+
+if (!validacion.valido) {
+  return res.status(400).json({ error: validacion.error });
+}
+
             // 🔥 IMPORTAR UTILIDAD
 const { calcularDetalleHoras, obtenerHorasSemanales, calcularTotalHoras } = require('../utils/calcularHoras');
 
@@ -893,7 +968,7 @@ const horasAcumuladas = await obtenerHorasSemanales(trabajadorId, fecha);
             if (detalleHoras.horasNocturnas > 0) {
               alertas.push({
                 tipo: 'NOCTURNAS',
-                mensaje: `🌙 Incluye ${detalleHoras.horasNocturnas}h nocturnas (23:00-06:00)`
+                mensaje: `🌙 Incluye ${detalleHoras.horasNocturnas}h nocturnas (22:00-06:00)`
               });
             }
             if (detalleHoras.horasFestivo > 0) {
@@ -3018,6 +3093,59 @@ app.get('/api/dashboard/ejecutivo', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error en dashboard ejecutivo:', error);
     res.status(500).json({ error: 'Error generando dashboard ejecutivo' });
+  }
+});
+
+// ==========================================
+// HORARIOS LIMPIEZA
+// ==========================================
+
+// Obtener horarios de un centro
+app.get('/api/centros/:id/horarios-limpieza', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const horarios = await prisma.horarioLimpieza.findMany({
+      where: { centroId: parseInt(id), activo: true },
+      orderBy: { orden: 'asc' }
+    });
+    res.json(horarios);
+  } catch (error) {
+    console.error('Error obteniendo horarios limpieza:', error);
+    res.status(500).json({ error: 'Error obteniendo horarios' });
+  }
+});
+
+// Crear/actualizar horarios limpieza
+app.post('/api/centros/:id/horarios-limpieza', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { horarios } = req.body; // Array: [{inicio, fin, orden}]
+
+    // Desactivar horarios anteriores
+    await prisma.horarioLimpieza.updateMany({
+      where: { centroId: parseInt(id) },
+      data: { activo: false }
+    });
+
+    // Crear nuevos horarios
+    const nuevosHorarios = await Promise.all(
+      horarios.map((h, index) =>
+        prisma.horarioLimpieza.create({
+          data: {
+            centroId: parseInt(id),
+            inicio: h.inicio,
+            fin: h.fin,
+            orden: index + 1,
+            activo: true
+          }
+        })
+      )
+    );
+
+    res.json(nuevosHorarios);
+  } catch (error) {
+    console.error('Error guardando horarios limpieza:', error);
+    res.status(500).json({ error: 'Error guardando horarios' });
   }
 });
 

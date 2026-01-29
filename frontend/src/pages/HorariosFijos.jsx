@@ -33,9 +33,28 @@ const HorariosFijos = ({ trabajadorId }) => {
   // Obtener centro seleccionado
 const centroSeleccionado = centros.find(c => c.id === parseInt(formData.centroId));
 
-// Determinar horarios límite (igual que en planificación manual)
-const horarioMin = centroSeleccionado?.horarioLimpiezaInicio || centroSeleccionado?.horarioApertura || '06:00';
-const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?.horarioCierre || '22:00';
+// Función para obtener horarios de validación
+const getHorariosValidacion = (centro) => {
+  if (!centro) return { min: '06:00', max: '22:00' };
+  
+  if (centro.tipoHorarioLimpieza === 'FLEXIBLE') {
+    return { min: '00:00', max: '23:59' };
+  }
+  
+  if (centro.horariosLimpieza && centro.horariosLimpieza.length > 0) {
+    const horarios = centro.horariosLimpieza;
+    const minInicio = horarios.reduce((min, h) => h.inicio < min ? h.inicio : min, horarios[0].inicio);
+    const maxFin = horarios.reduce((max, h) => h.fin > max ? h.fin : max, horarios[0].fin);
+    return { min: minInicio, max: maxFin };
+  }
+  
+  return { 
+    min: centro.horarioApertura || '06:00', 
+    max: centro.horarioCierre || '22:00' 
+  };
+};
+
+const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSeleccionado);
 
   // Cargar horarios del trabajador
   useEffect(() => {
@@ -399,10 +418,13 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
     />
     {/* ✅ MOSTRAR RANGO DEL CENTRO */}
     {centroSeleccionado && (
-      <p className="text-xs text-slate-500 mt-1">
-        Rango: {horarioMin} - {horarioMax}
-      </p>
-    )}
+  <p className="text-xs text-slate-500 mt-1">
+    {centroSeleccionado.tipoHorarioLimpieza === 'FLEXIBLE' 
+      ? 'Horario flexible (24/7)' 
+      : `Rango: ${horarioMin} - ${horarioMax}`
+    }
+  </p>
+)}
   </div>
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -417,10 +439,13 @@ const horarioMax = centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?
     />
     {/* ✅ MOSTRAR RANGO DEL CENTRO */}
     {centroSeleccionado && (
-      <p className="text-xs text-slate-500 mt-1">
-        Rango: {horarioMin} - {horarioMax}
-      </p>
-    )}
+  <p className="text-xs text-slate-500 mt-1">
+    {centroSeleccionado.tipoHorarioLimpieza === 'FLEXIBLE' 
+      ? 'Horario flexible (24/7)' 
+      : `Rango: ${horarioMin} - ${horarioMax}`
+    }
+  </p>
+)}
   </div>
 </div>
 

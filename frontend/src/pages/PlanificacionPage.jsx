@@ -821,17 +821,20 @@ const guardarAsignacion = async (e) => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Hora inicio *</label>
               <input
-                type="time"
-                value={form.horaInicio}
-                onChange={(e) => setForm({ ...form, horaInicio: e.target.value })}
-                min={centroSeleccionado?.horarioLimpiezaInicio || centroSeleccionado?.horarioApertura || '06:00'}
-                max={centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?.horarioCierre || '22:00'}
+  type="time"
+  value={form.horaInicio}
+  onChange={(e) => setForm({ ...form, horaInicio: e.target.value })}
+  min={centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' ? '00:00' : centroSeleccionado?.horariosLimpieza?.[0]?.inicio || '06:00'}
+  max={centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' ? '23:59' : centroSeleccionado?.horariosLimpieza?.[0]?.fin || '22:00'}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
               <p className="text-xs text-slate-500 mt-1">
-                Rango: {centroSeleccionado?.horarioLimpiezaInicio || centroSeleccionado?.horarioApertura || '06:00'} - {centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?.horarioCierre || '22:00'}
-              </p>
+  {centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' 
+    ? 'Horario flexible' 
+    : `Rango: ${centroSeleccionado?.horariosLimpieza?.[0]?.inicio || '06:00'} - ${centroSeleccionado?.horariosLimpieza?.[0]?.fin || '22:00'}`
+  }
+</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Hora fin *</label>
@@ -839,14 +842,17 @@ const guardarAsignacion = async (e) => {
                 type="time"
                 value={form.horaFin}
                 onChange={(e) => setForm({ ...form, horaFin: e.target.value })}
-                min={centroSeleccionado?.horarioLimpiezaInicio || centroSeleccionado?.horarioApertura || '06:00'}
-                max={centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?.horarioCierre || '22:00'}
+                min={centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' ? '00:00' : centroSeleccionado?.horariosLimpieza?.[0]?.inicio || '06:00'}
+  max={centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' ? '23:59' : centroSeleccionado?.horariosLimpieza?.[0]?.fin || '22:00'}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
               <p className="text-xs text-slate-500 mt-1">
-                Rango: {centroSeleccionado?.horarioLimpiezaInicio || centroSeleccionado?.horarioApertura || '06:00'} - {centroSeleccionado?.horarioLimpiezaFin || centroSeleccionado?.horarioCierre || '22:00'}
-              </p>
+  {centroSeleccionado?.tipoHorarioLimpieza === 'FLEXIBLE' 
+    ? 'Horario flexible' 
+    : `Rango: ${centroSeleccionado?.horariosLimpieza?.[0]?.inicio || '06:00'} - ${centroSeleccionado?.horariosLimpieza?.[0]?.fin || '22:00'}`
+  }
+</p>
             </div>
           </div>
           <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
