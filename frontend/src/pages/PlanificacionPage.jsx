@@ -334,7 +334,7 @@ const guardarAsignacion = async (e) => {
           <p className="text-slate-500">Asigna trabajadores a los turnos</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full">
           {/* Selector de centro con búsqueda */}
           <div className="relative w-full lg:w-96">
             <input
@@ -440,19 +440,28 @@ const guardarAsignacion = async (e) => {
           </div>
 
           <button
-            onClick={copiarSemana}
-            disabled={copiandoSemana}
-            className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 text-sm font-medium"
-          >
-            {copiandoSemana ? 'Copiando...' : 'Copiar'}
-          </button>
+  onClick={copiarSemana}
+  disabled={copiandoSemana}
+  className="w-full sm:w-auto px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 text-sm font-medium"
+>
+  {copiandoSemana ? 'Copiando...' : 'Copiar'}
+</button>
           
           <GenerarAsignacionesAutomaticas
-  onAsignacionesGeneradas={cargarAsignaciones}
-  api={api}
-/>
+          onAsignacionesGeneradas={cargarAsignaciones}
+           api={api}
+           />
         </div>
       </div>
+      {/* Toggle vista móvil/desktop */}
+<div className="lg:hidden mb-4 flex gap-2 bg-white rounded-xl p-1 border border-slate-200">
+  <button className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium">
+    Vista Día
+  </button>
+  <button className="flex-1 px-4 py-2 text-slate-600 rounded-lg text-sm font-medium">
+    Vista Semana
+  </button>
+</div>
 
       {/* Info del centro */}
       {centroSeleccionado && (
@@ -472,7 +481,7 @@ const guardarAsignacion = async (e) => {
 
 
       {/* Calendario semanal */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead>
@@ -558,6 +567,77 @@ const guardarAsignacion = async (e) => {
           </table>
         </div>
       </div>
+      {/* Vista móvil - Por día */}
+<div className="lg:hidden space-y-3">
+  {weekDates.map((date, i) => {
+    const asignacionesDia = getAsignacionesDia(date);
+    const isToday = date.toDateString() === new Date().toDateString();
+    const isWeekend = i >= 5;
+    
+    return (
+      <div key={i} className={`bg-white rounded-xl border-2 overflow-hidden ${
+        isToday ? 'border-blue-500' : 'border-slate-200'
+      }`}>
+        <div className={`p-4 ${
+          isWeekend ? 'bg-slate-100' : isToday ? 'bg-blue-50' : 'bg-slate-50'
+        }`}>
+          <h3 className="font-bold text-lg">
+            {diasSemana[i]} {date.getDate()}
+          </h3>
+          <p className="text-sm text-slate-600">{formatFecha(date)}</p>
+        </div>
+        
+        <div className="p-4 space-y-2">
+          {asignacionesDia.length === 0 ? (
+            <p className="text-center text-slate-400 py-4">Sin turnos</p>
+          ) : (
+            asignacionesDia.map(asig => {
+              const estaCancelado = asig.estado === 'CANCELADO';
+              const color = estaCancelado ? '#9ca3af' : getColorTrabajador(asig.trabajadorId, date);
+              
+              return (
+                <div
+                  key={asig.id}
+                  className={`rounded-lg p-3 ${estaCancelado ? 'opacity-50' : ''}`}
+                  style={{
+                    borderLeft: `4px solid ${color}`,
+                    backgroundColor: color === '#ef4444' ? '#fee2e2' :
+                      color === '#eab308' ? '#fef3c7' : 
+                      color === '#9ca3af' ? '#f3f4f6' : '#dbeafe',
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        {asig.trabajador?.nombre} {asig.trabajador?.apellidos}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {asig.horaInicio} - {asig.horaFin}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => eliminarAsignacion(asig.id)}
+                      className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          
+          <button
+            onClick={() => abrirModal(date)}
+            className="w-full py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
+          >
+            + Añadir turno
+          </button>
+        </div>
+      </div>
+    );
+  })}
+</div>
 
       {/* Leyenda */}
       <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">

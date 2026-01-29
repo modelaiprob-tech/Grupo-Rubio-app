@@ -67,7 +67,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
         </div>
 
         {/* SELECTOR DE PERIODO */}
-        <div className="mb-6 flex gap-3">
+        <div className="mb-6 flex flex-col sm:flex-row gap-3">
           <select
             value={mes}
             onChange={(e) => setMes(parseInt(e.target.value))}
@@ -105,7 +105,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
             {/* KPIs FINANCIEROS */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Indicadores Financieros</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid gap-4" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'}}>
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
                   <p className="text-sm text-blue-700 font-medium mb-1">Ingresos Totales</p>
                   <p className="text-3xl font-bold text-blue-900">
@@ -158,7 +158,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
               ) : (
                 <div className="space-y-3">
                   {dashboardCEO.topClientes.map((cliente, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold text-lg">
                           {idx + 1}
@@ -168,7 +168,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
                           <p className="text-sm text-slate-500">{cliente.horas}h trabajadas</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right sm:text-right text-left">
                         <p className="text-2xl font-bold text-slate-900">{formatCurrency(cliente.ingresos)}</p>
                       </div>
                     </div>
@@ -202,7 +202,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
             {/* EFICIENCIA OPERATIVA */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Eficiencia Operativa</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid gap-4" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'}}>
                 <div className="bg-slate-50 rounded-xl p-4">
                   <p className="text-sm text-slate-600 mb-1">Ratio Horas Extra</p>
                   <p className="text-2xl font-bold text-slate-900">{dashboardCEO.eficiencia.ratioHorasExtras}%</p>
@@ -231,7 +231,7 @@ export default function DashboardPage({ api, setCurrentPage }) {
             {/* STATS RÁPIDAS (las que ya tenías) */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Estado Actual</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid gap-4" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'}}>
                 <div className="bg-blue-50 rounded-xl p-4">
                   <p className="text-sm text-blue-700">Trabajadores Activos</p>
                   <p className="text-3xl font-bold text-blue-900 mt-2">{stats.trabajadoresActivos}</p>
