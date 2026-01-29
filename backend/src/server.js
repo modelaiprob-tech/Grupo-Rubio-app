@@ -891,24 +891,7 @@ app.get('/trabajadores/:id/completo', authMiddleware, async (req, res) => {
               return res.status(400).json({ error: 'El trabajador tiene una ausencia aprobada' });
             }
 
-            // Validar horario dentro del rango del centro
-const centro = await prisma.centroTrabajo.findUnique({
-  where: { id: centroId },
-  include: { 
-    horariosLimpieza: {
-      where: { activo: true },
-      orderBy: { orden: 'asc' }
-    }
-  }
-});
-
-
-const { validarHorarioEnCentro } = require('../utils/validarHorarioLimpieza');
-const validacion = validarHorarioEnCentro(centro, horaInicio, horaFin);
-
-if (!validacion.valido) {
-  return res.status(400).json({ error: validacion.error });
-}
+            
 
             // 🔥 IMPORTAR UTILIDAD
 const { calcularDetalleHoras, obtenerHorasSemanales, calcularTotalHoras } = require('../utils/calcularHoras');

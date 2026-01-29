@@ -147,66 +147,33 @@ if (!pasaPorMedianoche && horaFin <= horaInicio) {
   });
 }
 
-// ✅ VALIDAR HORARIO DEL CENTRO (con soporte para turnos nocturnos)
-if (centro.horarioApertura && centro.horarioCierre) {
-  const [hAperturaH, hAperturaM] = centro.horarioApertura.split(':').map(Number);
-  const [hCierreH, hCierreM] = centro.horarioCierre.split(':').map(Number);
-  const [hInicioH, hInicioM] = horaInicio.split(':').map(Number);
-  const [hFinH, hFinM] = horaFin.split(':').map(Number);
-  
-  const minApertura = hAperturaH * 60 + hAperturaM;
-  let minCierre = hCierreH * 60 + hCierreM;
-  const minInicio = hInicioH * 60 + hInicioM;
-  let minFin = hFinH * 60 + hFinM;
-  
-  // Detectar turno nocturno del centro (cierre < apertura, ej: 18:00-06:00)
-  const centroEsNocturno = minCierre < minApertura;
-  if (centroEsNocturno) {
-    minCierre += 1440; // Añadir 24h al cierre
-  }
-  
-  // Detectar turno nocturno del trabajador (fin < inicio, ej: 22:00-06:00)
-  const turnoEsNocturno = minFin < minInicio;
-  if (turnoEsNocturno) {
-    minFin += 1440; // Añadir 24h al fin
-  }
-  
-  // Validar que el turno esté dentro del horario del centro
-  // Caso 1: Centro y turno ambos nocturnos
-  if (centroEsNocturno && turnoEsNocturno) {
-    if (minInicio < minApertura || minFin > minCierre) {
-      return res.status(400).json({ 
-        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
-      });
-    }
-  }
-  // Caso 2: Centro nocturno, turno diurno
-  else if (centroEsNocturno && !turnoEsNocturno) {
-    // El turno debe empezar después de la apertura O terminar antes del cierre ajustado
-    const dentroDePrimeraParte = minInicio >= minApertura && minFin <= 1440;
-    const dentroDeSegundaParte = minInicio >= 0 && minFin <= (minCierre - 1440);
-    
-    if (!dentroDePrimeraParte && !dentroDeSegundaParte) {
-      return res.status(400).json({ 
-        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
-      });
-    }
-  }
-  // Caso 3: Centro diurno, turno nocturno
-  else if (!centroEsNocturno && turnoEsNocturno) {
+// ✅ VALIDAR HORARIO SOLO SI ES FIJO
+if (centro.tipoHorarioLimpieza === 'FIJO') {
+  // Obtener horarios de limpieza
+  const horariosLimpieza = await prisma.horarioLimpieza.findMany({
+    where: { centroId: parseInt(centroId), activo: true },
+    orderBy: { orden: 'asc' }
+  });
+
+  if (horariosLimpieza.length === 0) {
     return res.status(400).json({ 
-      error: `No se puede asignar un turno nocturno (${horaInicio}-${horaFin}) a un centro con horario diurno (${centro.horarioApertura}-${centro.horarioCierre})`
+      error: 'El centro tiene horario fijo pero no tiene horarios configurados' 
     });
   }
-  // Caso 4: Ambos diurnos (validación normal)
-  else {
-    if (minInicio < minApertura || minFin > minCierre) {
-      return res.status(400).json({ 
-        error: `El horario debe estar entre ${centro.horarioApertura} y ${centro.horarioCierre} (horario del centro)`
-      });
-    }
+
+  // Validar que el horario esté dentro de algún rango permitido
+  const { validarHorarioEnCentro } = require('../utils/validarHorarioLimpieza');
+  const validacion = validarHorarioEnCentro(
+    { ...centro, horariosLimpieza }, 
+    horaInicio, 
+    horaFin
+  );
+
+  if (!validacion.valido) {
+    return res.status(400).json({ error: validacion.error });
   }
 }
+// Si es FLEXIBLE, no validar nada
 
     // Verificar solapamientos con otros horarios del mismo trabajador
     const diasSeleccionados = { lunes, martes, miercoles, jueves, viernes, sabado, domingo };
