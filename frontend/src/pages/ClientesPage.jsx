@@ -4,6 +4,11 @@ import Modal from '../components/Modal';
 export default function ClientesPage({ api }) {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [mostrarInactivos, setMostrarInactivos] = useState(false)
+  const [modalBajaOpen, setModalBajaOpen] = useState(false)
+  const [modalBajaCentroOpen, setModalBajaCentroOpen] = useState(false)
+  const [centroParaBaja, setCentroParaBaja] = useState(null)
+  const [motivoBaja, setMotivoBaja] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalCentroOpen, setModalCentroOpen] = useState(false)
   const [centroEditando, setCentroEditando] = useState(null)
@@ -32,19 +37,20 @@ export default function ClientesPage({ api }) {
 })
 
   useEffect(() => {
-    cargarDatos()
-  }, [])
+  cargarDatos()
+}, [mostrarInactivos])
 
   const cargarDatos = async () => {
-    setLoading(true)
-    try {
-      const data = await api.get('/clientes')
-      setClientes(data)
-    } catch (err) {
-      console.error('Error cargando clientes:', err)
-    }
-    setLoading(false)
+  setLoading(true)
+  try {
+    const data = await api.get('/clientes')
+    const filtrados = mostrarInactivos ? data : data.filter(c => c.activo)
+    setClientes(filtrados)
+  } catch (err) {
+    console.error('Error cargando clientes:', err)
   }
+  setLoading(false)
+}
 
   const abrirModal = (cliente = null) => {
     setError('') // ✅ NUEVO: Limpiar error al abrir modal
@@ -203,22 +209,84 @@ const actualizarHorarioLimpieza = (index, campo, valor) => {
     setErrorCentro(mensaje)
   }
 }
+// Funciones de baja y reactivación
+const darDeBajaCliente = async () => {
+  try {
+    await api.put(`/clientes/${clienteSeleccionado.id}/dar-baja`, { motivo: motivoBaja })
+    alert('Cliente y sus centros dados de baja correctamente')
+    setModalBajaOpen(false)
+    setMotivoBaja('')
+    cargarDatos()
+  } catch (err) {
+    console.error('Error:', err)
+    alert('Error al dar de baja el cliente')
+  }
+}
+
+const reactivarCliente = async (clienteId) => {
+  if (!confirm('¿Reactivar este cliente?')) return
+  try {
+    await api.put(`/clientes/${clienteId}/reactivar`)
+    alert('Cliente reactivado')
+    cargarDatos()
+  } catch (err) {
+    console.error('Error:', err)
+    alert('Error al reactivar')
+  }
+}
+
+const darDeBajaCentro = async () => {
+  try {
+    await api.put(`/centros/${centroParaBaja.id}/dar-baja`, { motivo: motivoBaja })
+    alert('Centro dado de baja correctamente')
+    setModalBajaCentroOpen(false)
+    setMotivoBaja('')
+    cargarDatos()
+  } catch (err) {
+    console.error('Error:', err)
+    alert('Error al dar de baja el centro')
+  }
+}
+
+const reactivarCentro = async (centroId) => {
+  if (!confirm('¿Reactivar este centro?')) return
+  try {
+    await api.put(`/centros/${centroId}/reactivar`)
+    alert('Centro reactivado')
+    cargarDatos()
+  } catch (err) {
+    console.error('Error:', err)
+    alert('Error al reactivar')
+  }
+}
 
 
     return (
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Clientes</h1>
-            <p className="text-slate-500">{clientes.length} clientes registrados</p>
-          </div>
-          <button
-            onClick={() => abrirModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all"
-          >
-            <span className="text-xl">+</span> Nuevo Cliente
-          </button>
-        </div>
+  <div>
+    <h1 className="text-2xl font-bold text-slate-800">Clientes</h1>
+    <p className="text-slate-500">{clientes.length} clientes registrados</p>
+  </div>
+  <div className="flex gap-3">
+    <button
+      onClick={() => setMostrarInactivos(!mostrarInactivos)}
+      className={`px-4 py-2 rounded-xl transition-all ${
+        mostrarInactivos 
+          ? 'bg-slate-200 text-slate-700' 
+          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      }`}
+    >
+      {mostrarInactivos ? 'Ocultar inactivos' : 'Mostrar inactivos'}
+    </button>
+    <button
+      onClick={() => abrirModal()}
+      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all"
+    >
+      <span className="text-xl">+</span> Nuevo Cliente
+    </button>
+  </div>
+</div>
 
         {loading ? (
           <div className="text-center py-12 text-slate-500">Cargando...</div>
@@ -252,12 +320,32 @@ const actualizarHorarioLimpieza = (index, campo, valor) => {
                         <p className="text-2xl font-bold text-blue-600">{cliente.centrosTrabajo?.length || 0}</p>
                         <p className="text-xs text-slate-500">centros</p>
                       </div>
-                      <button
-                        onClick={() => abrirModal(cliente)}
-                        className="px-3 py-1 text-sm bg-slate-100 rounded-lg hover:bg-slate-200"
-                      >
-                        Editar
-                      </button>
+                      <div className="flex gap-2">
+  <button
+    onClick={() => abrirModal(cliente)}
+    className="px-3 py-1 text-sm bg-slate-100 rounded-lg hover:bg-slate-200"
+  >
+    Editar
+  </button>
+  {cliente.activo ? (
+    <button
+      onClick={() => {
+        setClienteSeleccionado(cliente)
+        setModalBajaOpen(true)
+      }}
+      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+    >
+      Dar de baja
+    </button>
+  ) : (
+    <button
+      onClick={() => reactivarCliente(cliente.id)}
+      className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+    >
+      Reactivar
+    </button>
+  )}
+</div>
                     </div>
                   </div>
 
@@ -266,19 +354,45 @@ const actualizarHorarioLimpieza = (index, campo, valor) => {
                       <p className="text-sm font-medium text-slate-600 mb-2">Centros de trabajo:</p>
                       <div className="flex flex-wrap gap-2">
                         {cliente.centrosTrabajo.map(centro => (
-                          <div key={centro.id} className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
-                            <span>{centro.nombre}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                abrirModalEditarCentro(centro);
-                              }}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              ✏️
-                            </button>
-                          </div>
-                        ))}
+  <div key={centro.id} className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+    centro.activo 
+      ? 'bg-blue-50 text-blue-700' 
+      : 'bg-slate-200 text-slate-600'
+  }`}>
+    <span>{centro.nombre}</span>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        abrirModalEditarCentro(centro);
+      }}
+      className="hover:opacity-70"
+    >
+      ✏️
+    </button>
+    {centro.activo ? (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setCentroParaBaja(centro);
+          setModalBajaCentroOpen(true);
+        }}
+        className="text-red-600 hover:text-red-800"
+      >
+        ❌
+      </button>
+    ) : (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          reactivarCentro(centro.id);
+        }}
+        className="text-green-600 hover:text-green-800"
+      >
+        ✅
+      </button>
+    )}
+  </div>
+))}
                       </div>
                     </div>
                   )}
@@ -556,6 +670,98 @@ const actualizarHorarioLimpieza = (index, campo, valor) => {
       </button>
     </div>
   </form>
+</Modal>
+{/* Modal Baja Cliente */}
+<Modal 
+  isOpen={modalBajaOpen} 
+  onClose={() => {
+    setModalBajaOpen(false)
+    setMotivoBaja('')
+  }} 
+  title="Dar de baja cliente"
+>
+  <div className="space-y-4">
+    <p className="text-slate-700">
+      ¿Estás seguro de dar de baja a <strong>{clienteSeleccionado?.nombre}</strong>?
+    </p>
+    <p className="text-sm text-amber-600">
+      ⚠️ También se darán de baja todos sus centros de trabajo.
+    </p>
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Motivo (opcional)
+      </label>
+      <textarea
+        value={motivoBaja}
+        onChange={(e) => setMotivoBaja(e.target.value)}
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        rows="3"
+        placeholder="Ej: Fin de contrato, cierre de empresa..."
+      />
+    </div>
+    <div className="flex gap-3">
+      <button
+        onClick={() => {
+          setModalBajaOpen(false)
+          setMotivoBaja('')
+        }}
+        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={darDeBajaCliente}
+        className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600"
+      >
+        Dar de baja
+      </button>
+    </div>
+  </div>
+</Modal>
+
+{/* Modal Baja Centro */}
+<Modal 
+  isOpen={modalBajaCentroOpen} 
+  onClose={() => {
+    setModalBajaCentroOpen(false)
+    setMotivoBaja('')
+  }} 
+  title="Dar de baja centro"
+>
+  <div className="space-y-4">
+    <p className="text-slate-700">
+      ¿Estás seguro de dar de baja el centro <strong>{centroParaBaja?.nombre}</strong>?
+    </p>
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Motivo (opcional)
+      </label>
+      <textarea
+        value={motivoBaja}
+        onChange={(e) => setMotivoBaja(e.target.value)}
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        rows="3"
+        placeholder="Ej: Cierre definitivo, traslado..."
+      />
+    </div>
+    <div className="flex gap-3">
+      <button
+        onClick={() => {
+          setModalBajaCentroOpen(false)
+          setMotivoBaja('')
+        }}
+        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={darDeBajaCentro}
+        className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600"
+      >
+        Dar de baja
+      </button>
+    </div>
+  </div>
 </Modal>
       </div>
     )
