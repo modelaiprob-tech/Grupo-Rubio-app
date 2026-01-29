@@ -6,6 +6,7 @@ export default function Ajustes() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [editando, setEditando] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,27 +30,59 @@ export default function Ajustes() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
+  e.preventDefault();
+  try {
+    if (editando) {
+      // Editar usuario existente
+      const datos = {
+        email: formData.email,
+        nombre: formData.nombre,
+        rol: formData.rol
+      };
+      // Solo incluir password si se escribió uno nuevo
+      if (formData.password) {
+        datos.password = formData.password;
+      }
+      await put(`/usuarios/${editando.id}`, datos);
+      alert('Usuario actualizado correctamente');
+    } else {
+      // Crear nuevo usuario
       await post('/usuarios', formData);
       alert('Usuario creado correctamente');
-      setFormData({ email: '', password: '', nombre: '', rol: 'TRABAJADOR' });
-      setMostrarForm(false);
-      cargarUsuarios();
-    } catch (error) {
-      alert('Error creando usuario: ' + (error.error || 'Error desconocido'));
     }
-  };
+    setFormData({ email: '', password: '', nombre: '', rol: 'TRABAJADOR' });
+    setMostrarForm(false);
+    setEditando(null);
+    cargarUsuarios();
+  } catch (error) {
+    alert('Error: ' + (error.error || 'Error desconocido'));
+  }
+};
 
-  const toggleActivo = async (id) => {
-    try {
-      await put(`/usuarios/${id}/toggle-activo`, {});
-      cargarUsuarios();
-    } catch (error) {
-      alert('Error cambiando estado');
-    }
-  };
+  const editarUsuario = (usuario) => {
+  setEditando(usuario);
+  setFormData({
+    email: usuario.email,
+    nombre: usuario.nombre,
+    password: '', // Dejar vacío para no cambiar
+    rol: usuario.rol
+  });
+  setMostrarForm(true);
+};
 
+const cancelarEdicion = () => {
+  setEditando(null);
+  setFormData({ email: '', password: '', nombre: '', rol: 'TRABAJADOR' });
+  setMostrarForm(false);
+};
+const toggleActivo = async (id) => {
+  try {
+    await put(`/usuarios/${id}/toggle-activo`, {});
+    cargarUsuarios();
+  } catch (error) {
+    alert('Error cambiando estado');
+  }
+};
   if (loading) return <div style={{padding: '20px'}}>Cargando...</div>;
 
   return (
@@ -58,18 +91,24 @@ export default function Ajustes() {
       
       <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '20px'}}>
         <button 
-          onClick={() => setMostrarForm(!mostrarForm)}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          {mostrarForm ? '❌ Cancelar' : '➕ Nuevo Usuario'}
-        </button>
+  onClick={() => {
+    if (mostrarForm) {
+      cancelarEdicion();
+    } else {
+      setMostrarForm(true);
+    }
+  }}
+  style={{
+    padding: '10px 20px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer'
+  }}
+>
+  {mostrarForm ? ' Cancelar' : ' Nuevo Usuario'}
+</button>
       </div>
 
       {mostrarForm && (
@@ -79,7 +118,7 @@ export default function Ajustes() {
           borderRadius: '8px',
           marginBottom: '20px'
         }}>
-          <h3>Crear Nuevo Usuario</h3>
+          <h3>{editando ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</h3>
           
           <div style={{marginBottom: '15px'}}>
             <label style={{display: 'block', marginBottom: '5px'}}>Email:</label>
@@ -129,18 +168,18 @@ export default function Ajustes() {
           </div>
 
           <button 
-            type="submit"
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            ✅ Crear Usuario
-          </button>
+  type="submit"
+  style={{
+    padding: '10px 20px',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer'
+  }}
+>
+  {editando ? ' Guardar Cambios' : ' Crear Usuario'}
+</button>
         </form>
       )}
 
@@ -186,28 +225,44 @@ export default function Ajustes() {
                     backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
                     color: usuario.activo ? '#065f46' : '#991b1b'
                   }}>
-                    {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
+                    {usuario.activo ? ' Activo' : ' Inactivo'}
                   </span>
                 </td>
                 <td style={{padding: '12px', textAlign: 'center', fontSize: '14px'}}>
                   {usuario.ultimoAcceso ? new Date(usuario.ultimoAcceso).toLocaleString('es-ES') : 'Nunca'}
                 </td>
                 <td style={{padding: '12px', textAlign: 'center'}}>
-                  <button
-                    onClick={() => toggleActivo(usuario.id)}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '12px'
-                    }}
-                  >
-                    {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
-                  </button>
-                </td>
+  <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+    <button
+      onClick={() => editarUsuario(usuario)}
+      style={{
+        padding: '6px 12px',
+        backgroundColor: '#3b82f6',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px'
+      }}
+    >
+       Editar
+    </button>
+    <button
+      onClick={() => toggleActivo(usuario.id)}
+      style={{
+        padding: '6px 12px',
+        backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px'
+      }}
+    >
+      {usuario.activo ? ' Desactivar' : ' Activar'}
+    </button>
+  </div>
+</td>
               </tr>
             ))}
           </tbody>
@@ -252,25 +307,43 @@ export default function Ajustes() {
                 backgroundColor: usuario.activo ? '#d1fae5' : '#fee2e2',
                 color: usuario.activo ? '#065f46' : '#991b1b'
               }}>
-                {usuario.activo ? '✅ Activo' : '❌ Inactivo'}
+                {usuario.activo ? ' Activo' : ' Inactivo'}
               </span>
             </div>
-            <button
-              onClick={() => toggleActivo(usuario.id)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              {usuario.activo ? '🔒 Desactivar' : '✅ Activar'}
-            </button>
+            <div style={{display: 'flex', gap: '8px'}}>
+  <button
+    onClick={() => editarUsuario(usuario)}
+    style={{
+      flex: 1,
+      padding: '10px',
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: '500'
+    }}
+  >
+     Editar
+  </button>
+  <button
+    onClick={() => toggleActivo(usuario.id)}
+    style={{
+      flex: 1,
+      padding: '10px',
+      backgroundColor: usuario.activo ? '#ef4444' : '#10b981',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: '500'
+    }}
+  >
+    {usuario.activo ? ' Desactivar' : ' Activar'}
+  </button>
+</div>
           </div>
         ))}
       </div>
