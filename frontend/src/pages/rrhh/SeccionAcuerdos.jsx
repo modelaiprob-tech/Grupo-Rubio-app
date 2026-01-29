@@ -39,7 +39,7 @@ export default function SeccionAcuerdos({ api })
     if (!confirm('¿Eliminar este acuerdo? No se podrá recuperar.')) return;
     
     try {
-      await api.delete(`/acuerdos-individuales/${id}`);
+      await api.del(`/acuerdos-individuales/${id}`);
       alert('Acuerdo eliminado correctamente');
       cargarAcuerdos();
     } catch (error) {

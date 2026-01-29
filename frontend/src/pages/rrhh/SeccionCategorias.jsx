@@ -38,7 +38,8 @@ export default function SeccionCategorias({ api }) {
     if (!confirm('¿Eliminar esta categoría? No se podrá recuperar.')) return;
     
     try {
-      await api.delete(`/categorias/${id}`);
+      await api.del(`/categorias/${id}`);
+
       alert('Categoría eliminada correctamente');
       cargarCategorias();
     } catch (error) {

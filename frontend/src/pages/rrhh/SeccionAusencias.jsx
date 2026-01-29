@@ -39,7 +39,7 @@ export default function SeccionAusencias({ api })
     if (!confirm('¿Eliminar este tipo de ausencia? No se podrá recuperar.')) return;
     
     try {
-      await api.delete(`/tipos-ausencia/${id}`);
+      await api.del(`/tipos-ausencia/${id}`);
       alert('Tipo de ausencia eliminado correctamente');
       cargarTipos();
     } catch (error) {
