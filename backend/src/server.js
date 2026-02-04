@@ -2301,11 +2301,6 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
 }
 // ============================================
-// SISTEMA DE BAJA LÓGICA (SOFT DELETE)
-// Reemplaza los endpoints DELETE existentes
-// ============================================
-
-// ============================================
 // TRABAJADORES - Baja Lógica
 // ============================================
 
