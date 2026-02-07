@@ -7,7 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { calcularTotalHoras, calcularHorasNocturnas, esFestivo, esDomingo } = require('../utils/calcularHoras');
@@ -19,7 +19,6 @@ const tiposAusenciaRoutes = require('./routes/tiposAusencia');
 const acuerdosRoutes = require('./routes/acuerdosIndividuales');
 const ajustesManualesRoutes = require('./routes/ajustesManuales');  // ← AÑADE ESTA LÍNEA
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'grupo-rubio-secret-key-cambiar-en-produccion';
 const { calcularDetalleHoras } = require('../utils/calcularHoras');
@@ -29,6 +28,7 @@ const { validate } = require('./middlewares/validation');
 const { crearAusenciaSchema, actualizarAusenciaSchema } = require('./validators/ausenciaValidators');
 const { loginLimiter, apiLimiter } = require('./middlewares/rateLimiter');
 const { auditLogger } = require('./middlewares/auditLogger');
+const { authMiddleware } = require('./middlewares/auth');
 // ============================================
 // FUNCIONES AUXILIARES
 // ============================================
@@ -61,6 +61,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
+//app.use('/api/', apiLimiter);
 
 // ============================================
 // FORZAR HTTPS EN PRODUCCIÓN
@@ -78,39 +79,14 @@ if (process.env.NODE_ENV === 'production') {
 // ============================================
 // RUTAS
 // ============================================
-app.use('/api/informes', informesRoutes);
-app.use('/api/categorias', categoriasRoutes);
-app.use('/api/control-horas', controlHorasRoutes);
-app.use('/api/tipos-ausencia', tiposAusenciaRoutes);
-app.use('/api/acuerdos-individuales', acuerdosRoutes);
-app.use('/api/horarios-fijos', horariosFijosRoutes);
-app.use('/api/ajustes-manuales', ajustesManualesRoutes);  // ← AÑADE ESTA LÍNEA
+app.use('/api/informes', authMiddleware, informesRoutes);
+app.use('/api/categorias', authMiddleware, categoriasRoutes);
+app.use('/api/control-horas', authMiddleware, controlHorasRoutes);
+app.use('/api/tipos-ausencia', authMiddleware, tiposAusenciaRoutes);
+app.use('/api/acuerdos-individuales', authMiddleware, acuerdosRoutes);
+app.use('/api/horarios-fijos', authMiddleware, horariosFijosRoutes);
+app.use('/api/ajustes-manuales', authMiddleware, ajustesManualesRoutes);
 
-
-// Middleware de autenticación
-const authMiddleware = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Token no proporcionado' });
-    }
-    
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    const usuario = await prisma.usuario.findUnique({ where: { id: decoded.id } });
-    if (!usuario || !usuario.activo) {
-      return res.status(401).json({ error: 'Usuario no válido' });
-    }
-    
-    req.user = usuario;
-    next();
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Sesión expirada. Inicia sesión nuevamente.' });
-    }
-    return res.status(401).json({ error: 'Token inválido' });
-  }
-};
 
 // Middleware solo para administradores
 const adminOnly = (req, res, next) => {
@@ -381,51 +357,6 @@ app.get('/api/trabajadores', authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * Obtener trabajadores disponibles (sin ausencias activas)
- * GET /api/trabajadores/disponibles?fecha=YYYY-MM-DD
- */
-app.get('/api/trabajadores/disponibles', authMiddleware, async (req, res) => {
-  try {
-    const { fecha } = req.query;
-    const fechaConsulta = fecha ? new Date(fecha) : new Date();
-    fechaConsulta.setHours(0, 0, 0, 0);
-
-    // Obtener trabajadores activos
-    const trabajadores = await prisma.trabajador.findMany({
-      where: { activo: true },
-      include: { categoria: true },
-      orderBy: [
-        { nombre: 'asc' },
-        { apellidos: 'asc' }
-      ]
-    });
-
-    // Obtener ausencias activas en la fecha
-    const ausenciasActivas = await prisma.ausencia.findMany({
-      where: {
-        estado: 'APROBADA',
-        fechaInicio: { lte: fechaConsulta },
-        fechaFin: { gte: fechaConsulta }
-      },
-      select: { trabajadorId: true }
-    });
-
-    // IDs de trabajadores con ausencias
-    const idsConAusencia = new Set(ausenciasActivas.map(a => a.trabajadorId));
-
-    // Filtrar trabajadores disponibles
-    const trabajadoresDisponibles = trabajadores.filter(t => !idsConAusencia.has(t.id));
-
-    console.log(`✅ Trabajadores disponibles: ${trabajadoresDisponibles.length}/${trabajadores.length}`);
-
-    res.json(trabajadoresDisponibles);
-
-  } catch (error) {
-    console.error('Error obteniendo trabajadores disponibles:', error);
-    res.status(500).json({ error: 'Error al obtener trabajadores' });
-  }
-});
 // ⚠️ IMPORTANTE: Este endpoint debe ir ANTES de /api/trabajadores/:id
 // porque Express matchea las rutas en orden
 app.get('/api/trabajadores/disponibles', authMiddleware, async (req, res) => {
@@ -1346,19 +1277,6 @@ await recalcularSemanaTrabajador(trabajadorId, fecha);
   }
 });
 
-        app.get('/api/tipos-ausencia', authMiddleware, async (req, res) => {
-          try {
-            const tipos = await prisma.tipoAusencia.findMany({
-              where: { activo: true },
-              orderBy: { nombre: 'asc' }
-            });
-            res.json(tipos);
-          } catch (error) {
-            console.error('Error listando tipos ausencia:', error);
-            res.status(500).json({ error: 'Error listando tipos de ausencia' });
-          }
-        });
-
         app.post('/api/ausencias', 
   authMiddleware,
   auditLogger('ausencias'),  // ← AÑADIR
@@ -1396,7 +1314,7 @@ app.get('/api/ausencias/:id/calcular-importe', authMiddleware, async (req, res) 
     }
 
     // Calcular importe
-    const calculo = calcularImporteAusencia(ausencia.trabajador, ausencia);
+    const calculo = await calcularImporteAusencia(ausencia.trabajador, ausencia);
 
     res.json({
       ausencia: {
@@ -1496,19 +1414,6 @@ app.put('/api/ausencias/:id/archivar', authMiddleware, async (req, res) => {
         });
 
         // ============================================
-        // RUTAS: CATEGORÍAS
-        // ============================================
-        app.get('/api/categorias', authMiddleware, async (req, res) => {
-          try {
-            const categorias = await prisma.categoria.findMany({ orderBy: { nombre: 'asc' } });
-            res.json(categorias);
-          } catch (error) {
-            console.error('Error listando categorías:', error);
-            res.status(500).json({ error: 'Error listando categorías' });
-          }
-        });
-
-        // ============================================
         // RUTAS: FESTIVOS
         // ============================================
         app.get('/api/festivos', authMiddleware, async (req, res) => {
@@ -1535,201 +1440,6 @@ app.put('/api/ausencias/:id/archivar', authMiddleware, async (req, res) => {
 // RUTAS: INFORMES
 // ============================================
 
-/**
- * INFORME 1: Estado Diario de Trabajadores
- * GET /api/informes/estado-trabajadores?fecha=YYYY-MM-DD
- */
-app.get('/api/informes/horas-trabajador', authMiddleware, async (req, res) => {
-  try {
-    const { trabajadorId, mes, año } = req.query;
-
-    if (!trabajadorId || !mes || !año) {
-      return res.status(400).json({ error: 'Faltan parámetros: trabajadorId, mes, año' });
-    }
-
-    // Obtener trabajador
-    const trabajador = await prisma.trabajador.findUnique({
-      where: { id: parseInt(trabajadorId) },
-      include: { categoria: true }
-    });
-
-    if (!trabajador) {
-      return res.status(404).json({ error: 'Trabajador no encontrado' });
-    }
-
-    // Calcular rango de fechas del mes
-    const inicioMes = new Date(parseInt(año), parseInt(mes) - 1, 1);
-    const finMes = new Date(parseInt(año), parseInt(mes), 0, 23, 59, 59, 999);
-
-    console.log(`📅 Consultando asignaciones de ${trabajador.nombre} del ${inicioMes.toLocaleDateString()} al ${finMes.toLocaleDateString()}`);
-
-    // 🔥 CONSULTAR ASIGNACIONES DIRECTAMENTE (no registro_horas)
-    const asignaciones = await prisma.asignacion.findMany({
-      where: {
-        trabajadorId: parseInt(trabajadorId),
-        fecha: {
-          gte: inicioMes,
-          lte: finMes
-        },
-        estado: {
-          notIn: ['CANCELADO']
-        }
-      },
-      include: {
-        centro: { 
-          include: { cliente: true } 
-        }
-      },
-      orderBy: [
-        { fecha: 'asc' },
-        { horaInicio: 'asc' }
-      ]
-    });
-
-    console.log(`📊 Asignaciones encontradas: ${asignaciones.length}`);
-
-    if (asignaciones.length === 0) {
-      return res.json({
-        trabajador: {
-          id: trabajador.id,
-          nombre: `${trabajador.nombre} ${trabajador.apellidos}`,
-          categoria: trabajador.categoria.nombre,
-          horasContrato: parseFloat(trabajador.horasContrato)
-        },
-        periodo: {
-          mes: parseInt(mes),
-          año: parseInt(año),
-          mesNombre: new Date(parseInt(año), parseInt(mes) - 1).toLocaleDateString('es-ES', { month: 'long' })
-        },
-        totales: {
-          horasNormales: 0,
-          horasExtras: 0,
-          horasNocturnas: 0,
-          horasFestivas: 0,
-          totalHoras: 0
-        },
-        desgloseSemanal: {},
-        detallesDias: []
-      });
-    }
-
-    // Organizar por semana
-    const asignacionesPorSemana = {};
-    asignaciones.forEach(asig => {
-      const semana = getWeekNumber(new Date(asig.fecha));
-      if (!asignacionesPorSemana[semana]) {
-        asignacionesPorSemana[semana] = [];
-      }
-      asignacionesPorSemana[semana].push(asig);
-    });
-
-    // 🔥 CALCULAR HORAS EN TIEMPO REAL
-    let totalNormales = 0;
-    let totalExtras = 0;
-    let totalNocturnas = 0;
-    let totalFestivas = 0;
-    const detallesDias = [];
-    const semanas = {};
-
-    for (const [numSemana, asignacionesSemana] of Object.entries(asignacionesPorSemana)) {
-      let horasAcumuladasSemana = 0;
-
-      for (const asig of asignacionesSemana) {
-        // Calcular horas totales
-        const totalHoras = calcularTotalHoras(asig.horaInicio, asig.horaFin);
-        const horasNocturnas = calcularHorasNocturnas(asig.horaInicio, asig.horaFin);
-        const esFestivoODomingo = await esFestivo(asig.fecha) || esDomingo(asig.fecha);
-
-        // Calcular si excede contrato
-        const horasContrato = parseFloat(trabajador.horasContrato);
-        const horasAcumuladas = horasAcumuladasSemana + totalHoras;
-
-        let horasNormales = 0;
-        let horasExtra = 0;
-
-        if (horasAcumuladas <= horasContrato) {
-          horasNormales = totalHoras;
-          horasExtra = 0;
-        } else if (horasAcumuladasSemana >= horasContrato) {
-          horasNormales = 0;
-          horasExtra = totalHoras;
-        } else {
-          horasNormales = horasContrato - horasAcumuladasSemana;
-          horasExtra = totalHoras - horasNormales;
-        }
-
-        const horasFestivo = esFestivoODomingo ? totalHoras : 0;
-
-        // Acumular totales
-        totalNormales += horasNormales;
-        totalExtras += horasExtra;
-        totalNocturnas += horasNocturnas;
-        totalFestivas += horasFestivo;
-
-        // Agregar al detalle por día
-        detallesDias.push({
-          fecha: asig.fecha.toISOString().split('T')[0],
-          centro: asig.centro?.nombre || 'Sin centro',
-          cliente: asig.centro?.cliente?.nombre || 'Sin cliente',
-          horasNormales: parseFloat(horasNormales.toFixed(2)),
-          horasExtras: parseFloat(horasExtra.toFixed(2)),
-          horasNocturnas: parseFloat(horasNocturnas.toFixed(2)),
-          horasFestivas: parseFloat(horasFestivo.toFixed(2))
-        });
-
-        // Acumular por semana
-        const key = `Semana ${numSemana}`;
-        if (!semanas[key]) {
-          semanas[key] = {
-            normales: 0,
-            extras: 0,
-            nocturnas: 0,
-            festivas: 0,
-            total: 0
-          };
-        }
-
-        semanas[key].normales += horasNormales;
-        semanas[key].extras += horasExtra;
-        semanas[key].nocturnas += horasNocturnas;
-        semanas[key].festivas += horasFestivo;
-        semanas[key].total += horasNormales + horasExtra;
-
-        // Actualizar acumuladas para siguiente asignación
-        horasAcumuladasSemana = horasAcumuladas;
-      }
-    }
-
-    console.log(`✅ Totales calculados - Normales: ${totalNormales.toFixed(2)}h, Extras: ${totalExtras.toFixed(2)}h, Total: ${(totalNormales + totalExtras).toFixed(2)}h`);
-
-    res.json({
-      trabajador: {
-        id: trabajador.id,
-        nombre: `${trabajador.nombre} ${trabajador.apellidos}`,
-        categoria: trabajador.categoria.nombre,
-        horasContrato: parseFloat(trabajador.horasContrato)
-      },
-      periodo: {
-        mes: parseInt(mes),
-        año: parseInt(año),
-        mesNombre: new Date(parseInt(año), parseInt(mes) - 1).toLocaleDateString('es-ES', { month: 'long' })
-      },
-      totales: {
-        horasNormales: parseFloat(totalNormales.toFixed(2)),
-        horasExtras: parseFloat(totalExtras.toFixed(2)),
-        horasNocturnas: parseFloat(totalNocturnas.toFixed(2)),
-        horasFestivas: parseFloat(totalFestivas.toFixed(2)),
-        totalHoras: parseFloat((totalNormales + totalExtras).toFixed(2))
-      },
-      desgloseSemanal: semanas,
-      detallesDias: detallesDias
-    });
-
-  } catch (error) {
-    console.error('❌ Error en informe horas trabajador:', error);
-    res.status(500).json({ error: 'Error generando informe' });
-  }
-});
 /**
  * INFORME: Estado Diario de Trabajadores
  * GET /api/informes/estado-trabajadores?fecha=YYYY-MM-DD
@@ -2587,24 +2297,6 @@ app.listen(PORT, () => {
 
         module.exports = app;
 
-// TEMPORAL - Crear admin
-app.post('/api/setup-admin', async (req, res) => {
-  try {
-    const passwordHash = await bcrypt.hash('admin123', 10);
-    const usuario = await prisma.usuario.create({
-      data: {
-        email: 'admin@gruporubio.com',
-        passwordHash,
-        nombre: 'Administrador',
-        rol: 'ADMIN',
-        activo: true
-      }
-    });
-    res.json({ mensaje: 'Admin creado', usuario });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // ============================================
 // KEEP-ALIVE: Mantener servidor despierto
@@ -2667,11 +2359,16 @@ app.get('/api/nominas/calcular/:trabajadorId', authMiddleware, async (req, res) 
           gte: fechaInicio,
           lte: fechaFin
         },
+        estado: { notIn: ['CANCELADO'] },
         ...(centroId && { centroId: parseInt(centroId) })
       },
       include: {
         centro: true
-      }
+      },
+      orderBy: [
+        { fecha: 'asc' },
+        { horaInicio: 'asc' }
+      ]
     });
 
     // Obtener ausencias del mes
@@ -2687,28 +2384,53 @@ app.get('/api/nominas/calcular/:trabajadorId', authMiddleware, async (req, res) 
       }
     });
 
-    // Calcular horas por tipo
+    // Calcular horas por tipo con acumulación semanal
     let horasNormales = 0;
     let horasNocturnas = 0;
     let horasFestivas = 0;
     let horasExtra = 0;
+    const horasContrato = parseFloat(trabajador.horasContrato);
 
-    for (const asig of asignaciones) {
-      const [horaInicioH, horaInicioM] = asig.horaInicio.split(':').map(Number);
-      const [horaFinH, horaFinM] = asig.horaFin.split(':').map(Number);
-      
-      let horas = (horaFinH + horaFinM / 60) - (horaInicioH + horaInicioM / 60);
-      if (horas < 0) horas += 24;
+    // Agrupar asignaciones por semana
+    const asignacionesPorSemana = {};
+    asignaciones.forEach(asig => {
+      const semana = getWeekNumber(new Date(asig.fecha));
+      if (!asignacionesPorSemana[semana]) {
+        asignacionesPorSemana[semana] = [];
+      }
+      asignacionesPorSemana[semana].push(asig);
+    });
 
-      // Determinar si es nocturna (22:00 - 06:00)
-      const esNocturna = horaInicioH >= 23 || horaFinH <= 6;
-      
-      // TODO: Determinar si es festiva (requiere tabla de festivos)
-      
-      if (esNocturna) {
-        horasNocturnas += horas;
-      } else {
-        horasNormales += horas;
+    for (const asignacionesSemana of Object.values(asignacionesPorSemana)) {
+      let horasAcumuladasSemana = 0;
+
+      for (const asig of asignacionesSemana) {
+        const horas = calcularTotalHoras(asig.horaInicio, asig.horaFin);
+        const horasNocturnasAsig = calcularHorasNocturnas(asig.horaInicio, asig.horaFin);
+        const esFestivoODomingo = await esFestivo(asig.fecha) || esDomingo(asig.fecha);
+
+        // Normal vs extra según acumulación semanal
+        const horasAcumuladas = horasAcumuladasSemana + horas;
+        let normales = 0;
+        let extras = 0;
+
+        if (horasAcumuladas <= horasContrato) {
+          normales = horas;
+        } else if (horasAcumuladasSemana >= horasContrato) {
+          extras = horas;
+        } else {
+          normales = horasContrato - horasAcumuladasSemana;
+          extras = horas - normales;
+        }
+
+        horasNormales += normales;
+        horasExtra += extras;
+        horasNocturnas += horasNocturnasAsig;
+        if (esFestivoODomingo) {
+          horasFestivas += horas;
+        }
+
+        horasAcumuladasSemana = horasAcumuladas;
       }
     }
 
@@ -2724,20 +2446,19 @@ app.get('/api/nominas/calcular/:trabajadorId', authMiddleware, async (req, res) 
     const importeExtra = horasExtra * precioHoraExtra;
 
     // Calcular días de ausencia y su coste
+    const { calcularImporteAusencia } = require('../utils/calcularImporteAusencia');
     let diasAusencia = 0;
     let importeAusencias = 0;
 
     for (const ausencia of ausencias) {
       const inicio = new Date(ausencia.fechaInicio) > fechaInicio ? new Date(ausencia.fechaInicio) : fechaInicio;
       const fin = new Date(ausencia.fechaFin) < fechaFin ? new Date(ausencia.fechaFin) : fechaFin;
-      
+
       const dias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
       diasAusencia += dias;
 
-      // Calcular coste de ausencia según porcentaje
-      const porcentajeCobro = parseFloat(ausencia.tipoAusencia.porcentajeCobro);
-      const salarioDiario = parseFloat(trabajador.categoria.salarioBase) / 30;
-      importeAusencias += (salarioDiario * dias * porcentajeCobro / 100);
+      const calculo = await calcularImporteAusencia(trabajador, { ...ausencia, fechaInicio: inicio, fechaFin: fin });
+      importeAusencias += calculo.importeTotal;
     }
 
     // Pluses mensuales

@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // POST /api/ajustes-manuales - Crear o actualizar ajuste manual
 router.post('/', async (req, res) => {

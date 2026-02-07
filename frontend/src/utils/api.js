@@ -65,10 +65,11 @@ export function useApi() {
     return data;
   };
 
-  const del = async (endpoint) => {
+  const del = async (endpoint, body) => {
     const res = await fetch(`${API_URL}${endpoint}`, {
       method: 'DELETE',
-      headers
+      headers,
+      ...(body && { body: JSON.stringify(body) })
     });
     const data = await res.json();
     if (!res.ok) {

@@ -5,8 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 router.get('/calendario-empresa', async (req, res) => {
   try {
     const { clienteId, fechaInicio, fechaFin } = req.query;

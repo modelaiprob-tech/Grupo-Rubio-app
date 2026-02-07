@@ -3,8 +3,7 @@
  * Grupo Rubio - Sistema de Gestión
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../src/config/prisma');
 
 /**
  * Calcula total de horas entre horaInicio y horaFin

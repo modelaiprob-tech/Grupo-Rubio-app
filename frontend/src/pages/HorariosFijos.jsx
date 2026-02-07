@@ -4,10 +4,10 @@
 // Guardar en: frontend/src/components/HorariosFijos.jsx
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useApi } from '../utils/api';
 
-const API_URL = 'http://localhost:3001/api';
 const HorariosFijos = ({ trabajadorId }) => {
+  const { get, post, put, del } = useApi();
   const [horarios, setHorarios] = useState([]);
   const [centros, setCentros] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,8 +67,8 @@ const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSelecci
   const cargarHorarios = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/horarios-fijos/trabajador/${trabajadorId}`);
-      setHorarios(response.data);
+      const data = await get(`/horarios-fijos/trabajador/${trabajadorId}`);
+      setHorarios(data);
     } catch (error) {
       console.error('Error al cargar horarios:', error);
       alert('Error al cargar horarios fijos');
@@ -79,13 +79,8 @@ const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSelecci
 
   const cargarCentros = async () => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/centros`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    setCentros(response.data);
+    const data = await get('/centros');
+    setCentros(data);
   } catch (error) {
     console.error('Error al cargar centros:', error);
   }
@@ -154,11 +149,11 @@ const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSelecci
       
       if (editando) {
         // Actualizar
-        await axios.put(`${API_URL}/horarios-fijos/${editando}`, formData);
+        await put(`/horarios-fijos/${editando}`, formData);
         alert('Horario actualizado correctamente');
       } else {
         // Crear
-        await axios.post(`${API_URL}/horarios-fijos`, {
+        await post('/horarios-fijos', {
           ...formData,
           trabajadorId: parseInt(trabajadorId)
         });
@@ -169,7 +164,7 @@ const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSelecci
       cerrarModal();
     } catch (error) {
       console.error('Error al guardar horario:', error);
-      alert(error.response?.data?.error || 'Error al guardar el horario');
+      alert(error?.error || 'Error al guardar el horario');
     } finally {
       setLoading(false);
     }
@@ -185,9 +180,7 @@ const { min: horarioMin, max: horarioMax } = getHorariosValidacion(centroSelecci
 
   try {
     setLoading(true);
-    await axios.delete(`${API_URL}/horarios-fijos/${id}`, {
-      data: { eliminarAsignacionesFuturas: true } // ← AÑADIR
-    });
+    await del(`/horarios-fijos/${id}`, { eliminarAsignacionesFuturas: true });
     alert('Horario desactivado y asignaciones futuras eliminadas');
     await cargarHorarios();
   } catch (error) {
