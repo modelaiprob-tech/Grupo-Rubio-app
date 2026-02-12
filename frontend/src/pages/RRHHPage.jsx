@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 import SeccionCategorias from './rrhh/SeccionCategorias';
 import SeccionAusencias from './rrhh/SeccionAusencias';
 import SeccionAcuerdos from './rrhh/SeccionAcuerdos';
 import ControlHorasPage from './ControlHorasPage';
 
-export default function RRHHPage({ api }) {
+export default function RRHHPage() {
+  const api = useApiClient();
   const [seccionActiva, setSeccionActiva] = useState('categorias');
 
   return (
@@ -60,10 +62,10 @@ export default function RRHHPage({ api }) {
       </div>
 
       {/* CONTENIDO */}
-      {seccionActiva === 'categorias' && <SeccionCategorias api={api} />}
-      {seccionActiva === 'ausencias' && <SeccionAusencias api={api} />}
-      {seccionActiva === 'acuerdos' && <SeccionAcuerdos api={api} />}
-      {seccionActiva === 'control-horas' && <ControlHorasPage api={api} />}
+      {seccionActiva === 'categorias' && <SeccionCategorias />}
+      {seccionActiva === 'ausencias' && <SeccionAusencias />}
+      {seccionActiva === 'acuerdos' && <SeccionAcuerdos />}
+      {seccionActiva === 'control-horas' && <ControlHorasPage />}
     
     </div>
   );

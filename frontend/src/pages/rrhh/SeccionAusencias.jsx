@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 import ModalTipoAusencia from '../../components/modals/ModalTipoAusencia';
 
-export default function SeccionAusencias({ api }) 
+export default function SeccionAusencias()
 {
+  const api = useApiClient();
   const [tipos, setTipos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -128,7 +130,6 @@ export default function SeccionAusencias({ api })
           tipo={tipoEditando}
           onClose={cerrarModal}
           onGuardar={cargarTipos}
-          api={api}
         />
       )}
     </div>

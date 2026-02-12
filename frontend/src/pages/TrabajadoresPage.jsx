@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import HorariosFijos from './HorariosFijos';
+import { useApiClient } from '../contexts/AuthContext';
 
-export default function TrabajadoresPage({ api }) {
+export default function TrabajadoresPage() {
+  const api = useApiClient();
   const [trabajadores, setTrabajadores] = useState([])
   const [categorias, setCategorias] = useState([])
   const [centros, setCentros] = useState([])

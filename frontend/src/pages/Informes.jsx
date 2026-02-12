@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 import './Informes.css';
 import InformeNominaDetallada from './InformeNominaDetallada';
 import InformacionTrabajador from './InformacionTrabajador';
 
-function Informes({ api }) {
+function Informes() {
+  const api = useApiClient();
   const [tipoInforme, setTipoInforme] = useState(null);
   const [loading, setLoading] = useState(false);
   const [datos, setDatos] = useState(null);
@@ -345,7 +347,7 @@ return (
 
         {/* INFO TRABAJADOR - Renderizado independiente */}
 {tipoInforme === 'info-trabajador' && (
-  <InformacionTrabajador api={api} />
+  <InformacionTrabajador />
 )}
 
         {/* RESTO DE INFORMES - Requieren generar datos */}

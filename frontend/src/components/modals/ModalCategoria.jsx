@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 
-export default function ModalCategoria({ categoria, onClose, onGuardar, api }) {const [formData, setFormData] = useState({
+export default function ModalCategoria({ categoria, onClose, onGuardar }) {
+  const api = useApiClient();
+  const [formData, setFormData] = useState({
     codigo: categoria?.codigo || '',
     nombre: categoria?.nombre || '',
     descripcion: categoria?.descripcion || '',

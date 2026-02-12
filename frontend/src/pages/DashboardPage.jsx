@@ -2,7 +2,12 @@
 
 
   import React, { useState, useEffect } from 'react';
-export default function DashboardPage({ api, setCurrentPage }) {
+  import { useNavigate } from 'react-router-dom';
+  import { useApiClient } from '../contexts/AuthContext';
+export default function DashboardPage() {
+  const api = useApiClient();
+  const navigate = useNavigate();
+  const setCurrentPage = (page) => navigate(`/${page}`);
   
     const [stats, setStats] = useState({
       trabajadoresActivos: 0,

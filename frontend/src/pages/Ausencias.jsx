@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import './Ausencias.css';
+import { useApiClient } from '../contexts/AuthContext';
 
-function Ausencias({ api }) {
+function Ausencias() {
+  const api = useApiClient();
   const [ausencias, setAusencias] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
   const [tiposAusencia, setTiposAusencia] = useState([]);

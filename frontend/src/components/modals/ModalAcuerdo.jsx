@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 
-export default function ModalAcuerdo({ acuerdo, onClose, onGuardar, api }) 
+export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
 {
+  const api = useApiClient();
   const [formData, setFormData] = useState({
     trabajadorId: acuerdo?.trabajadorId || '',
     tipoAcuerdo: acuerdo?.tipoAcuerdo || 'PRECIO_HORA',

@@ -1,13 +1,13 @@
 // ============================================
 // FRONTEND: GenerarAsignacionesAutomaticas.jsx
 // ============================================
-// Guardar en: frontend/src/components/GenerarAsignacionesAutomaticas.jsx
 
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useApiClient } from '../contexts/AuthContext';
 
-const API_URL = 'http://localhost:3001/api';
-const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas, api }) => {  const [showModal, setShowModal] = useState(false);
+const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas }) => {
+  const api = useApiClient();
+  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
   
@@ -92,7 +92,7 @@ const GenerarAsignacionesAutomaticas = ({ onAsignacionesGeneradas, api }) => {  
 
     } catch (error) {
       console.error('Error al generar asignaciones:', error);
-      alert(error.response?.data?.error || 'Error al generar asignaciones automáticas');
+      alert(error?.error || 'Error al generar asignaciones automáticas');
     } finally {
       setLoading(false);
     }

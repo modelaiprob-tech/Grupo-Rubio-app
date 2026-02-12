@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useApi } from '../utils/api';
+import { useApiClient } from '../contexts/AuthContext';
 
 export default function Ajustes() {
-  const { get, post, put } = useApi();
+  const { get, post, put } = useApiClient();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);

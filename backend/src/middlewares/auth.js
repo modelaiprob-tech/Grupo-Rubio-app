@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'grupo-rubio-secret-key-cambiar-en-produccion';
+const { JWT_SECRET } = require('../config/env');
 
 const authMiddleware = async (req, res, next) => {
   try {

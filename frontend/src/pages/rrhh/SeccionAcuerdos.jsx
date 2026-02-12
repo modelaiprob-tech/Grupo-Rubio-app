@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 import ModalAcuerdo from '../../components/modals/ModalAcuerdo';
 
-export default function SeccionAcuerdos({ api }) 
+export default function SeccionAcuerdos()
 {
+  const api = useApiClient();
   const [acuerdos, setAcuerdos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -129,7 +131,6 @@ export default function SeccionAcuerdos({ api })
           acuerdo={acuerdoEditando}
           onClose={cerrarModal}
           onGuardar={cargarAcuerdos}
-          api={api}
         />
       )}
     </div>

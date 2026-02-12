@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 import './Plantillas.css';
 
-function Plantillas({ api }) {
+function Plantillas() {
+  const api = useApiClient();
   const [plantillas, setPlantillas] = useState([]);
   const [centros, setCentros] = useState([]);
   const [mostrarModal, setMostrarModal] = useState(false);

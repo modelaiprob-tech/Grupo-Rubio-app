@@ -15,5 +15,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Librerías de React en un chunk separado (cacheable)
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Recharts es pesado, va aparte (solo se carga en Informes)
+          'vendor-recharts': ['recharts'],
+        }
+      }
+    }
   }
 })

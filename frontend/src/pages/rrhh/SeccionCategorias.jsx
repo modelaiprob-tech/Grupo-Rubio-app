@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 import ModalCategoria from '../../components/modals/ModalCategoria';
 
-export default function SeccionCategorias({ api }) {
+export default function SeccionCategorias() {
+  const api = useApiClient();
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -121,7 +123,6 @@ export default function SeccionCategorias({ api }) {
           categoria={categoriaEditando}
           onClose={cerrarModal}
           onGuardar={cargarCategorias}
-          api={api}
         />
       )}
     </div>

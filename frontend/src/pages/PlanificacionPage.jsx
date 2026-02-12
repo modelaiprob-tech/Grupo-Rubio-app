@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import GenerarAsignacionesAutomaticas from './GenerarAsignacionesAutomaticas';
 import { useAusencias } from '../hooks/useAusencias';
+import { useApiClient } from '../contexts/AuthContext';
 
 
 // ========================================
 // PÁGINA DE PLANIFICACIÓN
 // ========================================
-export default function PlanificacionPage({ api }) {
+export default function PlanificacionPage() {
+  const api = useApiClient();
   const [centros, setCentros] = useState([])
   const [trabajadores, setTrabajadores] = useState([])
   const [asignaciones, setAsignaciones] = useState([])
@@ -449,7 +451,6 @@ const guardarAsignacion = async (e) => {
           
           <GenerarAsignacionesAutomaticas
           onAsignacionesGeneradas={cargarAsignaciones}
-           api={api}
            />
         </div>
       </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 
-export default function ControlHorasPage({ api }) {
+export default function ControlHorasPage() {
+  const api = useApiClient();
   // ========== ESTADOS ==========
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [año, setAño] = useState(new Date().getFullYear());

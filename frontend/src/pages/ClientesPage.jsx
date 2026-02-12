@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
+import { useApiClient } from '../contexts/AuthContext';
 
-export default function ClientesPage({ api }) {
+export default function ClientesPage() {
+  const api = useApiClient();
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [mostrarInactivos, setMostrarInactivos] = useState(false)

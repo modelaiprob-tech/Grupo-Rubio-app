@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useApiClient } from '../../contexts/AuthContext';
 
-export default function ModalTipoAusencia({ tipo, onClose, onGuardar, api }) {
+export default function ModalTipoAusencia({ tipo, onClose, onGuardar }) {
+  const api = useApiClient();
   const [formData, setFormData] = useState({
     codigo: tipo?.codigo || '',
     nombre: tipo?.nombre || '',

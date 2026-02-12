@@ -4,10 +4,10 @@
 // Guardar en: frontend/src/components/HorariosFijos.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useApi } from '../utils/api';
+import { useApiClient } from '../contexts/AuthContext';
 
 const HorariosFijos = ({ trabajadorId }) => {
-  const { get, post, put, del } = useApi();
+  const { get, post, put, del } = useApiClient();
   const [horarios, setHorarios] = useState([]);
   const [centros, setCentros] = useState([]);
   const [loading, setLoading] = useState(false);

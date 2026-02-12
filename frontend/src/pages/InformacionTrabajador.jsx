@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import InformeNominaDetallada from './InformeNominaDetallada';
 
 const COLORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-export default function InformacionTrabajador({ api }) {
+export default function InformacionTrabajador() {
+  const api = useApiClient();
   const [trabajadorId, setTrabajadorId] = useState('');
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [año, setAño] = useState(new Date().getFullYear());
@@ -315,8 +317,7 @@ export default function InformacionTrabajador({ api }) {
 
             {mostrarNomina && (
               <div className="p-6 border-t border-slate-200">
-                <InformeNominaDetallada 
-  api={api} 
+                <InformeNominaDetallada
   trabajadorIdInicial={trabajadorId}
   mesInicial={mes}
   añoInicial={año}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useApiClient } from '../contexts/AuthContext';
 
-export default function InformeNominaDetallada({ 
-  api, 
-  trabajadorIdInicial = '', 
+export default function InformeNominaDetallada({
+  trabajadorIdInicial = '',
   mesInicial = new Date().getMonth() + 1,
   añoInicial = new Date().getFullYear(),
   ocultarFiltros = false  // ← NUEVO parámetro
 }) {
+  const api = useApiClient();
   const [mes, setMes] = useState(mesInicial);
   const [año, setAño] = useState(añoInicial);
   const [trabajadorId, setTrabajadorId] = useState(trabajadorIdInicial);
