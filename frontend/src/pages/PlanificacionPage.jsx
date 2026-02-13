@@ -42,6 +42,7 @@ export default function PlanificacionPage() {
   const [modalPlantillaOpen, setModalPlantillaOpen] = useState(false)
   const [formPlantilla, setFormPlantilla] = useState({ nombre: '', descripcion: '' })
   const [guardandoPlantilla, setGuardandoPlantilla] = useState(false)
+  const [ausenciasDiaModal, setAusenciasDiaModal] = useState([])
   // Obtener fechas de la semana
   const getWeekDates = (offset) => {
     const today = new Date()
@@ -188,22 +189,34 @@ export default function PlanificacionPage() {
     })
     setModalOpen(true)
 
-    // 🔥 NUEVO: Cargar trabajadores disponibles
+    // Cargar ausencias del día seleccionado (desde API, no del hook semanal)
+    try {
+      const ausencias = await api.get('/ausencias');
+      const fechaSel = new Date(fecha);
+      fechaSel.setHours(12, 0, 0, 0);
+      const ausenciasDia = ausencias.filter(a => {
+        const inicio = new Date(a.fechaInicio);
+        inicio.setHours(0, 0, 0, 0);
+        const fin = a.fechaAltaReal ? new Date(a.fechaAltaReal) : new Date(a.fechaFin);
+        fin.setHours(23, 59, 59, 999);
+        return fechaSel >= inicio && fechaSel <= fin;
+      });
+      setAusenciasDiaModal(ausenciasDia);
+    } catch (err) {
+      console.error('Error cargando ausencias del día:', err);
+      setAusenciasDiaModal([]);
+    }
+
+    // Cargar trabajadores disponibles
     await cargarTrabajadoresDisponibles(fecha, '06:00', '14:00')
   }
   const cargarTrabajadoresDisponibles = async (fecha, horaInicio, horaFin) => {
   if (!centroSeleccionado || !fecha) return
 
   try {
-    // Cargar TODOS los trabajadores activos
+    // Cargar TODOS los trabajadores activos (incluidos los de baja, para mostrarlos en rojo)
     const todosTrabajadores = await api.get('/trabajadores?activo=true');
-    
-    // Filtrar solo los que tienen ausencia CONFIRMADA
-    const trabajadoresDisponibles = todosTrabajadores.filter(t => {
-      return !tieneAusenciaConfirmada(t.id, fecha);
-    });
-    
-    setTrabajadores(trabajadoresDisponibles);
+    setTrabajadores(todosTrabajadores);
   } catch (err) {
     console.error('Error cargando trabajadores:', err)
   }
@@ -921,9 +934,9 @@ const guardarAsignacion = async (e) => {
                     >
                       <option value="">Seleccionar...</option>
                       {habituales.map(t => {
-  const ausencia = getAusencia(t.id, diaSeleccionado);
+  const ausencia = ausenciasDiaModal.find(a => a.trabajadorId === t.id);
 
-  // Determinar color de fondo según estado
+  // Determinar color de fondo según estado de ausencia en ese día
   let backgroundColor = '#dbeafe'; // Azul claro - disponible
   let estadoTexto = '';
 
@@ -968,9 +981,9 @@ const guardarAsignacion = async (e) => {
   {trabajadores
     .filter(t => !t.centrosAsignados?.some(ca => ca.centroId === centroSeleccionado?.id && ca.esHabitual))
     .map(t => {
-      const ausencia = getAusencia(t.id, diaSeleccionado);
+      const ausencia = ausenciasDiaModal.find(a => a.trabajadorId === t.id);
 
-      // Determinar color de fondo según estado
+      // Determinar color de fondo según estado de ausencia en ese día
       let backgroundColor = '#dbeafe'; // Azul claro - disponible
       let estadoTexto = '';
 
