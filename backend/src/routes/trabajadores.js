@@ -151,14 +151,22 @@ router.post('/', auditLogger('trabajadores'), validate(crearTrabajadorSchema), a
     const { dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
       localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
       horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-      numeroSeguridadSocial, cuentaBancaria, notas, activo } = req.body;
+      numeroSeguridadSocial, cuentaBancaria, notas, activo,
+      nacionalidad, estadoCivil, genero, provincia, pais,
+      emailPersonal, telefonoPersonal, telefonoEmergencia,
+      tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
+      compartirCumpleanos } = req.body;
 
     const trabajador = await prisma.trabajador.create({
       data: {
         dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
         localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
         horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-        numeroSeguridadSocial, cuentaBancaria, notas, activo
+        numeroSeguridadSocial, cuentaBancaria, notas, activo,
+        nacionalidad, estadoCivil, genero, provincia, pais,
+        emailPersonal, telefonoPersonal, telefonoEmergencia,
+        tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
+        compartirCumpleanos
       },
       include: { categoria: true }
     });
@@ -184,7 +192,11 @@ router.put('/:id', auditLogger('trabajadores'), validate(actualizarTrabajadorSch
     const { dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
       localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
       horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-      numeroSeguridadSocial, cuentaBancaria, notas, activo } = req.body;
+      numeroSeguridadSocial, cuentaBancaria, notas, activo,
+      nacionalidad, estadoCivil, genero, provincia, pais,
+      emailPersonal, telefonoPersonal, telefonoEmergencia,
+      tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
+      compartirCumpleanos } = req.body;
 
     const trabajador = await prisma.trabajador.update({
       where: { id },
@@ -192,7 +204,11 @@ router.put('/:id', auditLogger('trabajadores'), validate(actualizarTrabajadorSch
         dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
         localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
         horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-        numeroSeguridadSocial, cuentaBancaria, notas, activo
+        numeroSeguridadSocial, cuentaBancaria, notas, activo,
+        nacionalidad, estadoCivil, genero, provincia, pais,
+        emailPersonal, telefonoPersonal, telefonoEmergencia,
+        tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
+        compartirCumpleanos
       },
       include: { categoria: true }
     });

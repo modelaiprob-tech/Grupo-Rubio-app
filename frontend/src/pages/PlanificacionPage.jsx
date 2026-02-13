@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import GenerarAsignacionesAutomaticas from './GenerarAsignacionesAutomaticas';
+import VistaMensual from '../components/planificacion/VistaMensual';
 import { useAusencias } from '../hooks/useAusencias';
 import { useApiClient } from '../contexts/AuthContext';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 
 // ========================================
@@ -29,6 +31,12 @@ export default function PlanificacionPage() {
     horaInicio: '06:00',
     horaFin: '14:00'
   })
+  const [vistaActual, setVistaActual] = useState('semanal')
+  const [mesActual, setMesActual] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  })
+  const [asignacionesMensuales, setAsignacionesMensuales] = useState([])
   const [modalCopiarOpen, setModalCopiarOpen] = useState(false)
   const [copiandoSemana, setCopiandoSemana] = useState(false)
   const [modalPlantillaOpen, setModalPlantillaOpen] = useState(false)
@@ -69,8 +77,14 @@ export default function PlanificacionPage() {
     if (centroSeleccionado) {
       cargarAsignaciones()
     }
-    cargarAlertasGlobales()  // 👈 NUEVA LÍNEA
+    cargarAlertasGlobales()
   }, [centroSeleccionado, semanaOffset])
+
+  useEffect(() => {
+    if (vistaActual === 'mensual') {
+      cargarAsignacionesMensuales()
+    }
+  }, [vistaActual, mesActual, centroSeleccionado])
 
   const cargarDatos = async () => {
     setLoading(true)
@@ -104,6 +118,24 @@ export default function PlanificacionPage() {
     }
   }
 
+
+  const cargarAsignacionesMensuales = async () => {
+    const firstDay = new Date(mesActual.year, mesActual.month, 1);
+    const lastDay = new Date(mesActual.year, mesActual.month + 1, 0);
+    const fechaDesde = firstDay.toISOString().split('T')[0];
+    const fechaHasta = lastDay.toISOString().split('T')[0];
+
+    try {
+      let url = `/asignaciones?fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`;
+      if (centroSeleccionado) {
+        url += `&centroId=${centroSeleccionado.id}`;
+      }
+      const data = await api.get(url);
+      setAsignacionesMensuales(data);
+    } catch (err) {
+      console.error('Error cargando asignaciones mensuales:', err);
+    }
+  }
 
   const cargarAlertasGlobales = async () => {
     try {
@@ -419,27 +451,80 @@ const guardarAsignacion = async (e) => {
             </div>
           )}
 
-          {/* Navegación semanas */}
-          <div className="flex items-center gap-2">
+          {/* Toggle Semanal / Mensual */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden">
             <button
-              onClick={() => setSemanaOffset(s => s - 1)}
-              className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+              onClick={() => setVistaActual('semanal')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                vistaActual === 'semanal'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
             >
-              ←
+              Semanal
             </button>
             <button
-              onClick={() => setSemanaOffset(0)}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-sm"
+              onClick={() => setVistaActual('mensual')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                vistaActual === 'mensual'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
             >
-              Hoy
-            </button>
-            <button
-              onClick={() => setSemanaOffset(s => s + 1)}
-              className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
-            >
-              →
+              Mensual
             </button>
           </div>
+
+          {/* Navegación semanas (solo vista semanal) */}
+          {vistaActual === 'semanal' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSemanaOffset(s => s - 1)}
+                className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setSemanaOffset(0)}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-sm"
+              >
+                Hoy
+              </button>
+              <button
+                onClick={() => setSemanaOffset(s => s + 1)}
+                className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Navegación meses (solo vista mensual) */}
+          {vistaActual === 'mensual' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMesActual(prev => {
+                  const d = new Date(prev.year, prev.month - 1, 1);
+                  return { year: d.getFullYear(), month: d.getMonth() };
+                })}
+                className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium min-w-[160px] text-center capitalize">
+                {new Date(mesActual.year, mesActual.month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              </span>
+              <button
+                onClick={() => setMesActual(prev => {
+                  const d = new Date(prev.year, prev.month + 1, 1);
+                  return { year: d.getFullYear(), month: d.getMonth() };
+                })}
+                className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
 
           <button
   onClick={copiarSemana}
@@ -481,7 +566,20 @@ const guardarAsignacion = async (e) => {
 
 
 
+      {/* Vista Mensual */}
+      {vistaActual === 'mensual' && (
+        <VistaMensual
+          asignaciones={asignacionesMensuales}
+          mesActual={mesActual}
+          onAbrirModal={abrirModal}
+          onEliminarAsignacion={eliminarAsignacion}
+          getColorTrabajador={getColorTrabajador}
+          centroSeleccionado={centroSeleccionado}
+        />
+      )}
+
       {/* Calendario semanal */}
+      {vistaActual === 'semanal' && (<>
       <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px]">
@@ -640,6 +738,7 @@ const guardarAsignacion = async (e) => {
   })}
 </div>
 
+</>)}
       {/* Leyenda */}
       <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">
         <span className="flex items-center gap-2">

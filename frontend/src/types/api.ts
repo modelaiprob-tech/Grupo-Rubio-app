@@ -85,6 +85,19 @@ export interface Trabajador {
   diasAsuntosPropios: number;
   activo: boolean;
   notas?: string | null;
+  // Campos de perfil personal
+  nacionalidad?: string | null;
+  estadoCivil?: string | null;
+  genero?: string | null;
+  provincia?: string | null;
+  pais?: string | null;
+  emailPersonal?: string | null;
+  telefonoPersonal?: string | null;
+  telefonoEmergencia?: string | null;
+  tipoIdentificacion?: string | null;
+  identificacionSecundaria?: string | null;
+  tipoIdentificacionSecundaria?: string | null;
+  compartirCumpleanos?: boolean;
   // Relaciones incluidas en las respuestas
   categoria?: Categoria;
   centrosAsignados?: TrabajadorCentro[];

@@ -22,6 +22,7 @@ const HorariosFijos = lazy(() => import('./pages/HorariosFijos'))
 const RRHHPage = lazy(() => import('./pages/RRHHPage'))
 const ControlHorasPage = lazy(() => import('./pages/ControlHorasPage'))
 const Ajustes = lazy(() => import('./pages/Ajustes'))
+const PerfilTrabajador = lazy(() => import('./pages/PerfilTrabajador'))
 
 // ============================================
 // Spinner de carga para Suspense
@@ -112,6 +113,7 @@ function AppLayout() {
               <Route path="/planificacion" element={<PlanificacionPage />} />
               <Route path="/plantillas" element={<Plantillas />} />
               <Route path="/trabajadores" element={<TrabajadoresPage />} />
+              <Route path="/trabajadores/:id/perfil" element={<PerfilTrabajador />} />
               <Route path="/clientes" element={<ClientesPage />} />
               <Route path="/ausencias" element={<Ausencias />} />
               <Route path="/informes" element={<Informes />} />

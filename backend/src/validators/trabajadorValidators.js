@@ -83,6 +83,68 @@ const crearTrabajadorSchema = {
     required: false,
     type: 'string',
     maxLength: 2000
+  },
+  // Campos de perfil personal
+  nacionalidad: {
+    required: false,
+    type: 'string',
+    maxLength: 100
+  },
+  estadoCivil: {
+    required: false,
+    type: 'string',
+    enum: ['SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO', 'PAREJA_DE_HECHO']
+  },
+  genero: {
+    required: false,
+    type: 'string',
+    enum: ['MASCULINO', 'FEMENINO', 'NO_BINARIO', 'PREFIERO_NO_DECIR']
+  },
+  provincia: {
+    required: false,
+    type: 'string',
+    maxLength: 100
+  },
+  pais: {
+    required: false,
+    type: 'string',
+    maxLength: 100
+  },
+  emailPersonal: {
+    required: false,
+    type: 'string',
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    patternMessage: 'emailPersonal debe tener un formato válido',
+    maxLength: 255
+  },
+  telefonoPersonal: {
+    required: false,
+    type: 'string',
+    maxLength: 20
+  },
+  telefonoEmergencia: {
+    required: false,
+    type: 'string',
+    maxLength: 20
+  },
+  tipoIdentificacion: {
+    required: false,
+    type: 'string',
+    enum: ['DNI', 'NIE', 'PASAPORTE']
+  },
+  identificacionSecundaria: {
+    required: false,
+    type: 'string',
+    maxLength: 50
+  },
+  tipoIdentificacionSecundaria: {
+    required: false,
+    type: 'string',
+    enum: ['DNI', 'NIE', 'PASAPORTE']
+  },
+  compartirCumpleanos: {
+    required: false,
+    type: 'boolean'
   }
 };
 

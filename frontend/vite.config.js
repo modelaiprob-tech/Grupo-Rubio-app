@@ -22,6 +22,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           // Recharts es pesado, va aparte (solo se carga en Informes)
           'vendor-recharts': ['recharts'],
+          'vendor-icons': ['lucide-react'],
         }
       }
     }

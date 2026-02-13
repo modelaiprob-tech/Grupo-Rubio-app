@@ -78,6 +78,21 @@ model Trabajador {
   diasAsuntosPropios        Int                         @default(9) @map("dias_asuntos_propios")
   activo                    Boolean                     @default(true)
   notas                     String?
+
+  // Campos de perfil personal
+  nacionalidad                 String?
+  estadoCivil                  String?                     @map("estado_civil")
+  genero                       String?
+  provincia                    String?
+  pais                         String?                     @default("España")
+  emailPersonal                String?                     @map("email_personal")
+  telefonoPersonal             String?                     @map("telefono_personal")
+  telefonoEmergencia           String?                     @map("telefono_emergencia")
+  tipoIdentificacion           String?                     @default("DNI") @map("tipo_identificacion")
+  identificacionSecundaria     String?                     @map("identificacion_secundaria")
+  tipoIdentificacionSecundaria String?                     @map("tipo_identificacion_secundaria")
+  compartirCumpleanos          Boolean                     @default(false) @map("compartir_cumpleanos")
+
   createdAt                 DateTime                    @default(now()) @map("created_at")
   updatedAt                 DateTime                    @updatedAt @map("updated_at")
   asignaciones              Asignacion[]
