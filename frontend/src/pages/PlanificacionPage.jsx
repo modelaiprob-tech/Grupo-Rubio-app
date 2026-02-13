@@ -237,6 +237,7 @@ const guardarAsignacion = async (e) => {
 
     setModalOpen(false)
     cargarAsignaciones()
+    if (vistaActual === 'mensual') cargarAsignacionesMensuales()
 
   } catch (err) {
     console.error('Error guardando:', err)
@@ -249,6 +250,7 @@ const guardarAsignacion = async (e) => {
     try {
       await api.del(`/asignaciones/${asignacionId}`)
       cargarAsignaciones()
+      if (vistaActual === 'mensual') cargarAsignacionesMensuales()
     } catch (err) {
       console.error('Error eliminando:', err)
     }
@@ -274,6 +276,7 @@ const guardarAsignacion = async (e) => {
 
       alert(`✅ ${resultado.mensaje}`)
       setSemanaOffset(semanaOffset + 1) // Ir a la semana copiada
+      if (vistaActual === 'mensual') cargarAsignacionesMensuales()
     } catch (err) {
       console.error('Error copiando semana:', err)
       alert('❌ Error al copiar semana')
@@ -919,22 +922,19 @@ const guardarAsignacion = async (e) => {
                       <option value="">Seleccionar...</option>
                       {habituales.map(t => {
   const ausencia = getAusencia(t.id, diaSeleccionado);
-  
-  // Si tiene ausencia APROBADA, no mostrar
-  if (ausencia?.estado === 'APROBADA') return null;
-  
-  // Determinar color de fondo
-  let backgroundColor = '#dbeafe'; // Azul claro por defecto (disponible)
-  
-  if (ausencia?.estado === 'PENDIENTE') {
-    backgroundColor = '#fef3c7'; // Amarillo claro (pendiente)
+
+  // Determinar color de fondo según estado
+  let backgroundColor = '#dbeafe'; // Azul claro - disponible
+  let estadoTexto = '';
+
+  if (ausencia?.estado === 'APROBADA') {
+    backgroundColor = '#fee2e2'; // Rojo claro - en baja
+    estadoTexto = ` - 🔴 En baja: ${ausencia.tipoAusencia?.nombre || 'Ausencia'}`;
+  } else if (ausencia?.estado === 'PENDIENTE') {
+    backgroundColor = '#fef3c7'; // Amarillo claro - pendiente
+    estadoTexto = ` - ⚠️ ${ausencia.tipoAusencia?.nombre || 'Pendiente'}`;
   }
-  
-  // Texto del estado
-  const estadoTexto = ausencia?.estado === 'PENDIENTE' 
-    ? ` - ⚠️ ${ausencia.tipoAusencia?.nombre || 'Pendiente'}` 
-    : '';
-  
+
   return (
     <option
       key={t.id}
@@ -969,28 +969,26 @@ const guardarAsignacion = async (e) => {
     .filter(t => !t.centrosAsignados?.some(ca => ca.centroId === centroSeleccionado?.id && ca.esHabitual))
     .map(t => {
       const ausencia = getAusencia(t.id, diaSeleccionado);
-      
-      // Si tiene ausencia APROBADA, no mostrar
-      if (ausencia?.estado === 'APROBADA') return null;
-      
-      // Determinar color de fondo
-      let backgroundColor = '#dbeafe'; // Azul claro por defecto (disponible)
-      
-      if (ausencia?.estado === 'PENDIENTE') {
-        backgroundColor = '#fef3c7'; // Amarillo claro (pendiente)
+
+      // Determinar color de fondo según estado
+      let backgroundColor = '#dbeafe'; // Azul claro - disponible
+      let estadoTexto = '';
+
+      if (ausencia?.estado === 'APROBADA') {
+        backgroundColor = '#fee2e2'; // Rojo claro - en baja
+        estadoTexto = ` - 🔴 En baja: ${ausencia.tipoAusencia?.nombre || 'Ausencia'}`;
+      } else if (ausencia?.estado === 'PENDIENTE') {
+        backgroundColor = '#fef3c7'; // Amarillo claro - pendiente
+        estadoTexto = ` - ⚠️ ${ausencia.tipoAusencia?.nombre || 'Pendiente'}`;
       }
-      
-      // Texto del estado
-      const estadoTexto = ausencia?.estado === 'PENDIENTE' 
-        ? ` - ⚠️ ${ausencia.tipoAusencia?.nombre || 'Pendiente'}` 
-        : '';
-      
+
       return (
         <option
           key={t.id}
           value={t.id}
           style={{
-            backgroundColor: backgroundColor          }}
+            backgroundColor: backgroundColor
+          }}
         >
           {t.nombre} {t.apellidos}{estadoTexto}
         </option>
