@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 function getMonthDates(year, month) {
   const firstDay = new Date(year, month, 1);
@@ -30,12 +30,53 @@ export default function VistaMensual({
   onAbrirModal,
   onEliminarAsignacion,
   getColorTrabajador,
-  centroSeleccionado
+  centroSeleccionado,
+  api
 }) {
   const [expandedDay, setExpandedDay] = useState(null);
+  const [ausenciasMes, setAusenciasMes] = useState([]);
   const dates = getMonthDates(mesActual.year, mesActual.month);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Cargar ausencias para todo el mes
+  useEffect(() => {
+    if (!api) return;
+    const cargarAusenciasMes = async () => {
+      try {
+        const ausencias = await api.get('/ausencias');
+        const firstDate = dates[0];
+        const lastDate = dates[dates.length - 1];
+        const activas = ausencias.filter(a => {
+          const inicio = new Date(a.fechaInicio);
+          inicio.setHours(0, 0, 0, 0);
+          const fin = a.fechaAltaReal ? new Date(a.fechaAltaReal) : new Date(a.fechaFin);
+          fin.setHours(23, 59, 59, 999);
+          return inicio <= lastDate && fin >= firstDate;
+        });
+        setAusenciasMes(activas);
+      } catch (err) {
+        console.error('Error cargando ausencias mensuales:', err);
+      }
+    };
+    cargarAusenciasMes();
+  }, [mesActual.year, mesActual.month]);
+
+  // Color que tiene en cuenta ausencias del mes
+  const getColorConAusencias = useCallback((trabajadorId, fecha) => {
+    const fechaBusqueda = new Date(fecha);
+    fechaBusqueda.setHours(12, 0, 0, 0);
+    const ausencia = ausenciasMes.find(a => {
+      const inicio = new Date(a.fechaInicio);
+      inicio.setHours(0, 0, 0, 0);
+      const fin = a.fechaAltaReal ? new Date(a.fechaAltaReal) : new Date(a.fechaFin);
+      fin.setHours(23, 59, 59, 999);
+      return a.trabajadorId === trabajadorId && fechaBusqueda >= inicio && fechaBusqueda <= fin;
+    });
+    if (ausencia?.estado === 'APROBADA') return '#ef4444'; // Rojo
+    if (ausencia?.estado === 'PENDIENTE') return '#eab308'; // Amarillo
+    return '#3b82f6'; // Azul - disponible
+  }, [ausenciasMes]);
 
   const getAsignacionesDia = (fecha) => {
     const fechaStr = fecha.toISOString().split('T')[0];
@@ -117,12 +158,12 @@ export default function VistaMensual({
                   <div className="space-y-0.5">
                     {(isExpanded ? asigsDia : visibles).map(asig => {
                       const estaCancelado = asig.estado === 'CANCELADO';
-                      const color = estaCancelado ? '#9ca3af' : getColorTrabajador(asig.trabajadorId, date);
+                      const color = estaCancelado ? '#9ca3af' : getColorConAusencias(asig.trabajadorId, date);
 
                       return (
                         <div
                           key={asig.id}
-                          className={`text-[11px] rounded px-1.5 py-0.5 truncate group relative cursor-default ${
+                          className={`text-[11px] rounded px-1.5 py-1 group relative cursor-default flex items-center justify-between gap-1 ${
                             estaCancelado ? 'opacity-50' : ''
                           }`}
                           style={{
@@ -131,16 +172,18 @@ export default function VistaMensual({
                               color === '#eab308' ? '#fef3c7' :
                               color === '#9ca3af' ? '#f3f4f6' : '#dbeafe',
                           }}
-                          title={`${asig.trabajador?.nombre} ${asig.trabajador?.apellidos} | ${asig.horaInicio}-${asig.horaFin}`}
+                          title={`${asig.trabajador?.nombre} ${asig.trabajador?.apellidos} | ${asig.horaInicio}-${asig.horaFin}${color === '#ef4444' ? ' (En baja)' : color === '#eab308' ? ' (Baja pendiente)' : ''}`}
                         >
+                          <div className="truncate">
+                            <span className="font-medium">{asig.trabajador?.nombre}</span>
+                            <span className="ml-1 opacity-75">{asig.horaInicio}-{asig.horaFin}</span>
+                          </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); onEliminarAsignacion(asig.id); }}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            className="flex-shrink-0 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                           >
-                            x
+                            ×
                           </button>
-                          <span className="font-medium">{asig.trabajador?.nombre}</span>
-                          <span className="ml-1 opacity-75">{asig.horaInicio}-{asig.horaFin}</span>
                         </div>
                       );
                     })}
@@ -200,7 +243,7 @@ export default function VistaMensual({
                 ) : (
                   asigsDia.map(asig => {
                     const estaCancelado = asig.estado === 'CANCELADO';
-                    const color = estaCancelado ? '#9ca3af' : getColorTrabajador(asig.trabajadorId, date);
+                    const color = estaCancelado ? '#9ca3af' : getColorConAusencias(asig.trabajadorId, date);
                     return (
                       <div
                         key={asig.id}

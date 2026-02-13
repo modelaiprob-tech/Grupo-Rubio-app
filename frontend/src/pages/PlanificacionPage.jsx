@@ -577,6 +577,7 @@ const guardarAsignacion = async (e) => {
           onEliminarAsignacion={eliminarAsignacion}
           getColorTrabajador={getColorTrabajador}
           centroSeleccionado={centroSeleccionado}
+          api={api}
         />
       )}
 
