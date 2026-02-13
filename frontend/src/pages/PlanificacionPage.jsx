@@ -75,13 +75,15 @@ export default function PlanificacionPage() {
 
   useEffect(() => {
     if (centroSeleccionado) {
-      cargarAsignaciones()
+      Promise.all([
+        cargarAsignaciones(),
+        cargarAlertasGlobales()
+      ])
     }
-    cargarAlertasGlobales()
   }, [centroSeleccionado, semanaOffset])
 
   useEffect(() => {
-    if (vistaActual === 'mensual') {
+    if (vistaActual === 'mensual' && centroSeleccionado) {
       cargarAsignacionesMensuales()
     }
   }, [vistaActual, mesActual, centroSeleccionado])
