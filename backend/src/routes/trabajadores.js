@@ -9,6 +9,49 @@ const { validate } = require('../middlewares/validation');
 const { crearTrabajadorSchema, actualizarTrabajadorSchema, trabajadorCentroSchema } = require('../validators/trabajadorValidators');
 const { asyncHandler } = require('../middlewares/errorHandler');
 
+// Helper: limpiar datos del body antes de enviar a Prisma
+// Convierte strings vacíos a null y aplica tipos correctos
+function limpiarDatosTrabajador(body) {
+  const camposPermitidos = [
+    'dni', 'nombre', 'apellidos', 'telefono', 'email', 'direccion', 'codigoPostal',
+    'localidad', 'fechaNacimiento', 'fechaAlta', 'categoriaId', 'tipoContrato',
+    'horasContrato', 'costeHora', 'diasVacacionesAnuales', 'diasAsuntosPropios',
+    'numeroSeguridadSocial', 'cuentaBancaria', 'notas', 'activo',
+    'nacionalidad', 'estadoCivil', 'genero', 'provincia', 'pais',
+    'emailPersonal', 'telefonoPersonal', 'telefonoEmergencia',
+    'tipoIdentificacion', 'identificacionSecundaria', 'tipoIdentificacionSecundaria',
+    'compartirCumpleanos'
+  ];
+
+  const camposDateTime = ['fechaNacimiento', 'fechaAlta', 'fechaBaja'];
+  const camposInt = ['categoriaId', 'diasVacacionesAnuales', 'diasAsuntosPropios'];
+  const camposDecimal = ['horasContrato', 'costeHora'];
+  const camposBoolean = ['activo', 'compartirCumpleanos'];
+
+  const data = {};
+  for (const campo of camposPermitidos) {
+    if (body[campo] !== undefined) {
+      let valor = body[campo];
+
+      // Convertir strings vacíos a null (Prisma no acepta '' para DateTime, etc.)
+      if (valor === '' || valor === null) {
+        valor = null;
+      } else if (camposDateTime.includes(campo)) {
+        valor = new Date(valor);
+      } else if (camposInt.includes(campo)) {
+        valor = parseInt(valor);
+      } else if (camposDecimal.includes(campo)) {
+        valor = parseFloat(valor);
+      } else if (camposBoolean.includes(campo)) {
+        valor = valor === true || valor === 'true';
+      }
+
+      data[campo] = valor;
+    }
+  }
+  return data;
+}
+
 // GET /api/trabajadores
 router.get('/', asyncHandler(async (req, res) => {
     const { activo, categoria, busqueda } = req.query;
@@ -148,26 +191,10 @@ router.get('/:id/completo', asyncHandler(async (req, res) => {
 
 // POST /api/trabajadores
 router.post('/', auditLogger('trabajadores'), validate(crearTrabajadorSchema), asyncHandler(async (req, res) => {
-    const { dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
-      localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
-      horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-      numeroSeguridadSocial, cuentaBancaria, notas, activo,
-      nacionalidad, estadoCivil, genero, provincia, pais,
-      emailPersonal, telefonoPersonal, telefonoEmergencia,
-      tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
-      compartirCumpleanos } = req.body;
+    const data = limpiarDatosTrabajador(req.body);
 
     const trabajador = await prisma.trabajador.create({
-      data: {
-        dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
-        localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
-        horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-        numeroSeguridadSocial, cuentaBancaria, notas, activo,
-        nacionalidad, estadoCivil, genero, provincia, pais,
-        emailPersonal, telefonoPersonal, telefonoEmergencia,
-        tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
-        compartirCumpleanos
-      },
+      data,
       include: { categoria: true }
     });
 
@@ -189,23 +216,7 @@ router.put('/:id', auditLogger('trabajadores'), validate(actualizarTrabajadorSch
     const id = parseInt(req.params.id);
     const anterior = await prisma.trabajador.findUnique({ where: { id } });
 
-    // Filtrar solo campos que vienen en el body (no undefined) para evitar errores de Prisma
-    const camposPermitidos = [
-      'dni', 'nombre', 'apellidos', 'telefono', 'email', 'direccion', 'codigoPostal',
-      'localidad', 'fechaNacimiento', 'fechaAlta', 'categoriaId', 'tipoContrato',
-      'horasContrato', 'costeHora', 'diasVacacionesAnuales', 'diasAsuntosPropios',
-      'numeroSeguridadSocial', 'cuentaBancaria', 'notas', 'activo',
-      'nacionalidad', 'estadoCivil', 'genero', 'provincia', 'pais',
-      'emailPersonal', 'telefonoPersonal', 'telefonoEmergencia',
-      'tipoIdentificacion', 'identificacionSecundaria', 'tipoIdentificacionSecundaria',
-      'compartirCumpleanos'
-    ];
-    const data = {};
-    for (const campo of camposPermitidos) {
-      if (req.body[campo] !== undefined) {
-        data[campo] = req.body[campo];
-      }
-    }
+    const data = limpiarDatosTrabajador(req.body);
 
     const trabajador = await prisma.trabajador.update({
       where: { id },
