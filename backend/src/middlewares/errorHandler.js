@@ -40,10 +40,11 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // Error genérico
+  // Error genérico (temporal: mostrar detalle para depuración)
   res.status(500).json({
     error: 'Error interno del servidor',
-    mensaje: process.env.NODE_ENV === 'development' ? err.message : undefined
+    mensaje: err.message,
+    code: err.code || undefined
   });
 }
 
