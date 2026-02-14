@@ -189,27 +189,27 @@ router.put('/:id', auditLogger('trabajadores'), validate(actualizarTrabajadorSch
     const id = parseInt(req.params.id);
     const anterior = await prisma.trabajador.findUnique({ where: { id } });
 
-    const { dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
-      localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
-      horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-      numeroSeguridadSocial, cuentaBancaria, notas, activo,
-      nacionalidad, estadoCivil, genero, provincia, pais,
-      emailPersonal, telefonoPersonal, telefonoEmergencia,
-      tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
-      compartirCumpleanos } = req.body;
+    // Filtrar solo campos que vienen en el body (no undefined) para evitar errores de Prisma
+    const camposPermitidos = [
+      'dni', 'nombre', 'apellidos', 'telefono', 'email', 'direccion', 'codigoPostal',
+      'localidad', 'fechaNacimiento', 'fechaAlta', 'categoriaId', 'tipoContrato',
+      'horasContrato', 'costeHora', 'diasVacacionesAnuales', 'diasAsuntosPropios',
+      'numeroSeguridadSocial', 'cuentaBancaria', 'notas', 'activo',
+      'nacionalidad', 'estadoCivil', 'genero', 'provincia', 'pais',
+      'emailPersonal', 'telefonoPersonal', 'telefonoEmergencia',
+      'tipoIdentificacion', 'identificacionSecundaria', 'tipoIdentificacionSecundaria',
+      'compartirCumpleanos'
+    ];
+    const data = {};
+    for (const campo of camposPermitidos) {
+      if (req.body[campo] !== undefined) {
+        data[campo] = req.body[campo];
+      }
+    }
 
     const trabajador = await prisma.trabajador.update({
       where: { id },
-      data: {
-        dni, nombre, apellidos, telefono, email, direccion, codigoPostal,
-        localidad, fechaNacimiento, fechaAlta, categoriaId, tipoContrato,
-        horasContrato, costeHora, diasVacacionesAnuales, diasAsuntosPropios,
-        numeroSeguridadSocial, cuentaBancaria, notas, activo,
-        nacionalidad, estadoCivil, genero, provincia, pais,
-        emailPersonal, telefonoPersonal, telefonoEmergencia,
-        tipoIdentificacion, identificacionSecundaria, tipoIdentificacionSecundaria,
-        compartirCumpleanos
-      },
+      data,
       include: { categoria: true }
     });
 
