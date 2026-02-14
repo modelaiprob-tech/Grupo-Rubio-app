@@ -40,6 +40,7 @@ const PORT = process.env.PORT || 3001;
 // ============================================
 // MIDDLEWARE GLOBAL
 // ============================================
+app.set('trust proxy', 1); // Render usa proxy — necesario para rate limiter
 app.use(helmet());
 
 const corsOptions = {
@@ -75,19 +76,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Diagnóstico temporal: verificar columnas de trabajadores
-app.get('/api/db-check', async (req, res) => {
-  try {
-    const result = await prisma.$queryRaw`
-      SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'trabajadores'
-      ORDER BY ordinal_position
-    `;
-    res.json({ columns: result.map(r => r.column_name), total: result.length });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ============================================
 // MONTAJE DE RUTAS
