@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// Helper: formatear fecha como YYYY-MM-DD en zona local (evita bug de timezone con toISOString)
+function formatDateLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getMonthDates(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -79,7 +87,7 @@ export default function VistaMensual({
   }, [ausenciasMes]);
 
   const getAsignacionesDia = (fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0];
+    const fechaStr = formatDateLocal(fecha);
     return asignaciones.filter(a => a.fecha.split('T')[0] === fechaStr);
   };
 
@@ -122,7 +130,7 @@ export default function VistaMensual({
               const MAX_VISIBLE = 3;
               const visibles = asigsDia.slice(0, MAX_VISIBLE);
               const restantes = asigsDia.length - MAX_VISIBLE;
-              const isExpanded = expandedDay === date.toISOString().split('T')[0];
+              const isExpanded = expandedDay === formatDateLocal(date);
 
               return (
                 <div
@@ -190,7 +198,7 @@ export default function VistaMensual({
 
                     {restantes > 0 && !isExpanded && (
                       <button
-                        onClick={() => setExpandedDay(date.toISOString().split('T')[0])}
+                        onClick={() => setExpandedDay(formatDateLocal(date))}
                         className="text-[10px] text-blue-500 hover:text-blue-700 font-medium px-1.5"
                       >
                         +{restantes} más

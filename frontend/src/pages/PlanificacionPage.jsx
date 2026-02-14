@@ -7,6 +7,14 @@ import { useApiClient } from '../contexts/AuthContext';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 
+// Helper: formatear fecha como YYYY-MM-DD en zona local (evita bug de timezone con toISOString)
+function formatDateLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ========================================
 // PÁGINA DE PLANIFICACIÓN
 // ========================================
@@ -110,8 +118,8 @@ export default function PlanificacionPage() {
   const cargarAsignaciones = async () => {
     if (!centroSeleccionado) return
 
-    const fechaDesde = weekDates[0].toISOString().split('T')[0]
-    const fechaHasta = weekDates[6].toISOString().split('T')[0]
+    const fechaDesde = formatDateLocal(weekDates[0])
+    const fechaHasta = formatDateLocal(weekDates[6])
 
     try {
       const data = await api.get(`/asignaciones?centroId=${centroSeleccionado.id}&fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`)
@@ -125,8 +133,8 @@ export default function PlanificacionPage() {
   const cargarAsignacionesMensuales = async () => {
     const firstDay = new Date(mesActual.year, mesActual.month, 1);
     const lastDay = new Date(mesActual.year, mesActual.month + 1, 0);
-    const fechaDesde = firstDay.toISOString().split('T')[0];
-    const fechaHasta = lastDay.toISOString().split('T')[0];
+    const fechaDesde = formatDateLocal(firstDay);
+    const fechaHasta = formatDateLocal(lastDay);
 
     try {
       let url = `/asignaciones?fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`;
@@ -142,8 +150,8 @@ export default function PlanificacionPage() {
 
   const cargarAlertasGlobales = async () => {
     try {
-      const fechaDesde = weekDates[0].toISOString().split('T')[0];
-      const fechaHasta = weekDates[6].toISOString().split('T')[0];
+      const fechaDesde = formatDateLocal(weekDates[0]);
+      const fechaHasta = formatDateLocal(weekDates[6]);
 
       // Obtener TODAS las asignaciones de la semana (sin filtrar por centro)
       const todasAsignaciones = await api.get(`/asignaciones?fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`);
@@ -227,7 +235,7 @@ const guardarAsignacion = async (e) => {
     const resultado = await api.post('/asignaciones', {
       trabajadorId: parseInt(form.trabajadorId),
       centroId: centroSeleccionado.id,
-      fecha: diaSeleccionado.toISOString().split('T')[0],
+      fecha: formatDateLocal(diaSeleccionado),
       horaInicio: form.horaInicio,
       horaFin: form.horaFin
     })
@@ -273,13 +281,13 @@ const guardarAsignacion = async (e) => {
 
     setCopiandoSemana(true)
     try {
-      const fechaOrigenInicio = weekDates[0].toISOString().split('T')[0]
-      const fechaOrigenFin = weekDates[6].toISOString().split('T')[0]
+      const fechaOrigenInicio = formatDateLocal(weekDates[0])
+      const fechaOrigenFin = formatDateLocal(weekDates[6])
 
       // Calcular semana siguiente
       const proximaSemana = new Date(weekDates[0])
       proximaSemana.setDate(proximaSemana.getDate() + 7)
-      const fechaDestinoInicio = proximaSemana.toISOString().split('T')[0]
+      const fechaDestinoInicio = formatDateLocal(proximaSemana)
 
       const resultado = await api.post('/asignaciones/copiar-semana', {
         fechaOrigenInicio,
@@ -306,8 +314,8 @@ const guardarAsignacion = async (e) => {
 
     setGuardandoPlantilla(true)
     try {
-      const fechaInicio = weekDates[0].toISOString().split('T')[0]
-      const fechaFin = weekDates[6].toISOString().split('T')[0]
+      const fechaInicio = formatDateLocal(weekDates[0])
+      const fechaFin = formatDateLocal(weekDates[6])
 
       const resultado = await api.post('/plantillas/crear-desde-semana', {
         nombre: formPlantilla.nombre,
@@ -341,7 +349,7 @@ const guardarAsignacion = async (e) => {
       if (ausencia.estado === 'PENDIENTE') return `Baja pendiente: ${ausencia.tipoAusencia?.nombre}`;
     }
 
-    const fechaStr = fecha?.toISOString().split('T')[0];
+    const fechaStr = fecha ? formatDateLocal(fecha) : null;
     const asignacionOtroCentro = asignaciones.find(a =>
       a.trabajadorId === trabajadorId &&
       a.fecha.split('T')[0] === fechaStr &&
@@ -355,7 +363,7 @@ const guardarAsignacion = async (e) => {
     return null;
   };
   const getAsignacionesDia = (fecha) => {
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = formatDateLocal(fecha)
     return asignaciones.filter(a => a.fecha.split('T')[0] === fechaStr)
   }
 
