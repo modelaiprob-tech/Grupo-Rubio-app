@@ -322,9 +322,13 @@ async function main() {
   // ============================================
   console.log('👤 Creando usuarios iniciales...');
 
-  const passwordHash = await bcrypt.hash('admin123', 10);
-  const passwordManuel = await bcrypt.hash('manuel123', 10);
-  const passwordIrene = await bcrypt.hash('irene123', 10);
+  // Contraseñas iniciales — CAMBIAR tras primer login en producción
+  // admin:   GrupoRubio@Admin2026!
+  // manuel:  GrupoRubio@Plan2026!
+  // irene:   GrupoRubio@RRHH2026!
+  const passwordHash = await bcrypt.hash('GrupoRubio@Admin2026!', 12);
+  const passwordManuel = await bcrypt.hash('GrupoRubio@Plan2026!', 12);
+  const passwordIrene = await bcrypt.hash('GrupoRubio@RRHH2026!', 12);
 
   const usuarios = await Promise.all([
     prisma.usuario.upsert({
