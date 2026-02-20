@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Login se carga estáticamente (primera pantalla)
 import LoginPage from './pages/LoginPage'
+import ModalCambiarPassword from './components/ModalCambiarPassword'
 
 // Páginas cargadas bajo demanda (code-splitting)
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -103,10 +104,13 @@ function LoginRoute() {
 // Layout principal con Sidebar
 // ============================================
 function AppLayout() {
-  const { user } = useAuth()
+  const { user, cambiarPassword } = useAuth()
 
   return (
     <div className="flex h-screen bg-[#f0f4f8] overflow-hidden">
+      {user?.debeCambiarPassword && (
+        <ModalCambiarPassword onCambiar={cambiarPassword} />
+      )}
       <Sidebar />
       <main className="flex-1 overflow-auto pt-16 lg:pt-0">
         <ErrorBoundary>

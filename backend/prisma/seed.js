@@ -335,6 +335,7 @@ async function main() {
         passwordHash: passwordHash,
         nombre: 'Administrador',
         rol: 'ADMIN',
+        debeCambiarPassword: true,
       },
     }),
     prisma.usuario.upsert({
@@ -345,6 +346,7 @@ async function main() {
         passwordHash: passwordManuel,
         nombre: 'Manuel',
         rol: 'PLANIFICADOR',
+        debeCambiarPassword: true,
       },
     }),
     prisma.usuario.upsert({
@@ -355,6 +357,7 @@ async function main() {
         passwordHash: passwordIrene,
         nombre: 'Irene',
         rol: 'RRHH',
+        debeCambiarPassword: true,
       },
     }),
   ]);

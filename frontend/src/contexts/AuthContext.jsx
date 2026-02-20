@@ -88,6 +88,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Cambiar contraseña y limpiar el flag
+  const cambiarPassword = useCallback(async (passwordActual, passwordNueva) => {
+    const res = await api.put('/auth/cambiar-password', { passwordActual, passwordNueva });
+    setUser(prev => prev ? { ...prev, debeCambiarPassword: false } : prev);
+    return res;
+  }, [api]);
+
   // Check auth on mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -125,9 +132,10 @@ export function AuthProvider({ children }) {
     api,
     login,
     logout,
+    cambiarPassword,
     isAuthenticated: !!user,
     isAdmin: user?.rol === 'ADMIN',
-  }), [user, token, checking, api, login, logout]);
+  }), [user, token, checking, api, login, logout, cambiarPassword]);
 
   return (
     <AuthContext.Provider value={value}>
