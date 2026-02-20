@@ -76,6 +76,27 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// ============================================
+// TEMPORAL: Ejecutar seed desde endpoint (ELIMINAR DESPUÉS DE USAR)
+// ============================================
+app.post('/api/seed-run', (req, res) => {
+  const key = req.headers['x-seed-key'];
+  if (key !== 'GR-seed-2026-xK9mQ4vL8pW2') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { execFile } = require('child_process');
+  const path = require('path');
+  const seedPath = path.join(__dirname, '..', 'prisma', 'seed.js');
+
+  execFile('node', [seedPath], { timeout: 30000 }, (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).json({ error: error.message, logs: stderr || stdout });
+    }
+    res.json({ mensaje: 'Seed ejecutado correctamente', logs: stdout });
+  });
+});
+
 
 // ============================================
 // MONTAJE DE RUTAS
