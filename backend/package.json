@@ -6,25 +6,33 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "build": "prisma generate && prisma db push",
+    "build": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "postinstall": "npx prisma generate",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force && npm run db:seed"
+    "db:reset": "prisma migrate reset --force && npm run db:seed",
+    "test": "jest --verbose",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "prisma": "^5.10.0"
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "jest": "^30.2.0",
+    "nodemon": "^3.0.3",
+    "prisma": "^5.10.0"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

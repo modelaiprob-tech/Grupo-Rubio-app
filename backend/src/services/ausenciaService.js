@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { calcularImporteAusencia } = require('../../utils/calcularImporteAusencia');
 
 async function verificarSolapamiento(trabajadorId, fechaInicio, fechaFin, ausenciaIdExcluir = null) {
   const where = {
@@ -22,10 +23,10 @@ async function verificarSolapamiento(trabajadorId, fechaInicio, fechaFin, ausenc
   });
 
   if (ausenciasSolapadas.length > 0) {
-    const detalles = ausenciasSolapadas.map(a => 
+    const detalles = ausenciasSolapadas.map(a =>
       `${a.tipoAusencia.nombre} (${new Date(a.fechaInicio).toLocaleDateString('es-ES')} - ${new Date(a.fechaFin).toLocaleDateString('es-ES')})`
     ).join(', ');
-    
+
     throw {
       status: 400,
       error: 'El trabajador ya tiene ausencias en este período',
@@ -86,6 +87,100 @@ function agruparPorCentro(asignaciones) {
   return Object.values(centrosAfectados);
 }
 
+// ============================================
+// Listar ausencias con filtros
+// ============================================
+async function listar(query) {
+  const { estado, trabajadorId, mes, año, archivada } = query;
+
+  const where = {};
+
+  if (estado) {
+    where.estado = estado;
+  }
+
+  if (trabajadorId) {
+    const trabajadorIdNum = parseInt(trabajadorId);
+    if (isNaN(trabajadorIdNum)) {
+      throw { status: 400, error: 'trabajadorId debe ser un número' };
+    }
+    where.trabajadorId = trabajadorIdNum;
+  }
+
+  if (archivada !== undefined) {
+    where.archivada = archivada === 'true';
+  }
+
+  if (mes && año) {
+    const mesNum = parseInt(mes);
+    const añoNum = parseInt(año);
+
+    if (isNaN(mesNum) || isNaN(añoNum) || mesNum < 1 || mesNum > 12) {
+      throw { status: 400, error: 'Mes o año inválidos' };
+    }
+
+    const inicioMes = new Date(añoNum, mesNum - 1, 1);
+    const finMes = new Date(añoNum, mesNum, 0, 23, 59, 59, 999);
+
+    where.OR = [
+      { fechaInicio: { gte: inicioMes, lte: finMes } },
+      { fechaFin: { gte: inicioMes, lte: finMes } }
+    ];
+  }
+
+  return prisma.ausencia.findMany({
+    where,
+    include: {
+      trabajador: {
+        select: { id: true, nombre: true, apellidos: true }
+      },
+      tipoAusencia: true,
+      aprobadoPor: {
+        select: { id: true, nombre: true }
+      }
+    },
+    orderBy: { fechaInicio: 'desc' }
+  });
+}
+
+// ============================================
+// Calcular importe de una ausencia
+// ============================================
+async function calcularImporte(id) {
+  const ausencia = await prisma.ausencia.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      tipoAusencia: true,
+      trabajador: {
+        include: {
+          categoria: true,
+          acuerdosIndividuales: {
+            where: { activo: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!ausencia) {
+    throw { status: 404, error: 'Ausencia no encontrada' };
+  }
+
+  const calculo = await calcularImporteAusencia(ausencia.trabajador, ausencia);
+
+  return {
+    ausencia: {
+      id: ausencia.id,
+      trabajador: `${ausencia.trabajador.nombre} ${ausencia.trabajador.apellidos}`,
+      tipoAusencia: ausencia.tipoAusencia.nombre,
+      fechaInicio: ausencia.fechaInicio,
+      fechaFin: ausencia.fechaFin,
+      diasTotales: ausencia.diasTotales
+    },
+    calculo: calculo
+  };
+}
+
 async function crearAusencia(data) {
   const { trabajadorId, tipoAusenciaId, fechaInicio, fechaFin, motivo } = data;
 
@@ -122,11 +217,11 @@ async function crearAusencia(data) {
 }
 
 async function actualizarAusencia(id, data) {
-  const { 
+  const {
     trabajadorId,
     tipoAusenciaId,
-    fechaInicio, 
-    fechaFin, 
+    fechaInicio,
+    fechaFin,
     motivo,
     observaciones,
     fechaAltaReal,
@@ -212,11 +307,28 @@ async function rechazarAusencia(id, usuarioId, motivo) {
   return ausencia;
 }
 
+// ============================================
+// Archivar/desarchivar ausencia
+// ============================================
+async function archivar(id, archivada) {
+  return prisma.ausencia.update({
+    where: { id: parseInt(id) },
+    data: { archivada: archivada },
+    include: {
+      trabajador: { select: { id: true, nombre: true, apellidos: true } },
+      tipoAusencia: true
+    }
+  });
+}
+
 module.exports = {
+  listar,
+  calcularImporte,
   crearAusencia,
   actualizarAusencia,
   aprobarAusencia,
   rechazarAusencia,
+  archivar,
   verificarSolapamiento,
   marcarAsignacionesAfectadas
 };

@@ -1,254 +1,93 @@
-import { useState, useEffect } from 'react';
-import './Ausencias.css';
+import { useEffect } from 'react';
 import { useApiClient } from '../contexts/AuthContext';
+import { useGestionAusencias } from '../hooks/useAusencias';
+
+function useFont(href) {
+  useEffect(() => {
+    if (!document.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+  }, []);
+}
+
+const cardClass = 'bg-white rounded-2xl p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.07)] transition-all duration-300';
+const selectClass = 'bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 shadow-sm';
+const inputClass = 'w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all';
+const labelClass = 'block text-sm font-medium text-gray-500 mb-2';
 
 function Ausencias() {
   const api = useApiClient();
-  const [ausencias, setAusencias] = useState([]);
-  const [trabajadores, setTrabajadores] = useState([]);
-  const [tiposAusencia, setTiposAusencia] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editando, setEditando] = useState(null);
-  const [mostrarArchivadas, setMostrarArchivadas] = useState(false); // NUEVO
-  const [filtros, setFiltros] = useState({
-    estado: '',
-    trabajadorId: '',
-    tipo: ''
-  });
+  const {
+    ausencias,
+    trabajadores,
+    tiposAusencia,
+    loading,
+    modalOpen,
+    setModalOpen,
+    editando,
+    mostrarArchivadas,
+    setMostrarArchivadas,
+    filtros,
+    setFiltros,
+    form,
+    setForm,
+    abrirModal,
+    guardar,
+    aprobar,
+    rechazar,
+    toggleArchivar,
+    getEstadoBadge,
+    ausenciaTerminada,
+    esBajaMedica
+  } = useGestionAusencias(api);
 
-  const [form, setForm] = useState({
-    trabajadorId: '',
-    tipoAusenciaId: '',
-    fechaInicio: '',
-    fechaFin: '',
-    motivo: '',
-    observaciones: '',
-    fechaAltaReal: '', // NUEVO - Fecha real de reincorporación
-    // Campos específicos para bajas médicas
-    numeroParte: '',
-    contingencia: 'COMUN',
-    entidadEmisora: ''
-  });
+  useFont('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+  const font = { fontFamily: '"Outfit", sans-serif' };
 
-  useEffect(() => {
-    cargarDatos();
-  }, [filtros.estado, filtros.trabajadorId, mostrarArchivadas]); // MODIFICADO
-
-  const cargarDatos = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filtros.estado) params.append('estado', filtros.estado);
-      if (filtros.trabajadorId) params.append('trabajadorId', filtros.trabajadorId);
-      if (!mostrarArchivadas) params.append('archivada', 'false'); // NUEVO
-
-      const [ausenciasData, trabajadoresData, tiposData] = await Promise.all([
-        api.get(`/ausencias?${params.toString()}`),
-        api.get('/trabajadores?activo=true'), // ✅ TODOS los trabajadores activos
-        api.get('/tipos-ausencia')
-      ]);
-
-      setAusencias(ausenciasData);
-      setTrabajadores(trabajadoresData);
-      setTiposAusencia(tiposData);
-    } catch (err) {
-      console.error('Error cargando datos:', err);
-    }
-    setLoading(false);
+  const estadoBadgeClass = (estado) => {
+    if (estado === 'PENDIENTE') return 'bg-amber-50 text-amber-700';
+    if (estado === 'APROBADA') return 'bg-emerald-50 text-emerald-700';
+    if (estado === 'RECHAZADA') return 'bg-rose-50 text-rose-600';
+    return 'bg-gray-100 text-gray-600';
   };
-
-  const abrirModal = (ausencia = null) => {
-    if (ausencia) {
-      setEditando(ausencia);
-      setForm({
-        trabajadorId: ausencia.trabajadorId,
-        tipoAusenciaId: ausencia.tipoAusenciaId,
-        fechaInicio: ausencia.fechaInicio?.split('T')[0],
-        fechaFin: ausencia.fechaFin?.split('T')[0],
-        motivo: ausencia.motivo || '',
-        observaciones: ausencia.observaciones || '',
-        fechaAltaReal: ausencia.fechaAltaReal?.split('T')[0] || '', // NUEVO
-        numeroParte: ausencia.numeroParte || '',
-        contingencia: ausencia.contingencia || 'COMUN',
-        entidadEmisora: ausencia.entidadEmisora || ''
-      });
-    } else {
-      setEditando(null);
-      setForm({
-        trabajadorId: '',
-        tipoAusenciaId: '',
-        fechaInicio: '',
-        fechaFin: '',
-        motivo: '',
-        observaciones: '',
-        fechaAltaReal: '', // NUEVO
-        numeroParte: '',
-        contingencia: 'COMUN',
-        entidadEmisora: ''
-      });
-    }
-    setModalOpen(true);
-  };
-
-  const guardar = async (e) => {
-    e.preventDefault();
-    try {
-      const datos = {
-        trabajadorId: parseInt(form.trabajadorId),
-        tipoAusenciaId: parseInt(form.tipoAusenciaId),
-        fechaInicio: form.fechaInicio,
-        fechaFin: form.fechaFin,
-        motivo: form.motivo,
-        observaciones: form.observaciones,
-        fechaAltaReal: form.fechaAltaReal || null // NUEVO
-      };
-
-      // Si es baja médica, agregar campos específicos
-      const tipoSeleccionado = tiposAusencia.find(t => t.id === parseInt(form.tipoAusenciaId));
-      if (tipoSeleccionado?.codigo === 'BM' || tipoSeleccionado?.codigo === 'BML') {
-        datos.numeroParte = form.numeroParte;
-        datos.contingencia = form.contingencia;
-        datos.entidadEmisora = form.entidadEmisora;
-      }
-
-      if (editando) {
-        await api.put(`/ausencias/${editando.id}`, datos);
-      } else {
-        await api.post('/ausencias', datos);
-      }
-
-      setModalOpen(false);
-      cargarDatos();
-    } catch (error) {
-  console.error('Error guardando ausencia:', error);
-  
-  // Mostrar mensaje específico si es error de validación
-  if (error.error) {
-    alert(error.error + (error.ausenciasSolapadas ? '\n\nConflicto con: ' + error.ausenciasSolapadas : ''));
-  } else if (error.detalles) {
-    alert('Errores:\n' + error.detalles.join('\n'));
-  } else {
-    alert('Error al guardar ausencia');
-  }
-}
-  };
-
-  const aprobar = async (id) => {
-    if (!confirm('¿Aprobar esta ausencia?')) return;
-    try {
-      const respuesta = await api.put(`/ausencias/${id}/aprobar`);
-      
-      // Mostrar centros afectados
-      if (respuesta.centrosAfectados && respuesta.centrosAfectados.length > 0) {
-        let mensaje = `🔴 AUSENCIA APROBADA - ACCIÓN REQUERIDA\n\n`;
-        mensaje += `Se han detectado ${respuesta.totalAsignacionesAfectadas} asignaciones que requieren suplencia:\n\n`;
-        
-        respuesta.centrosAfectados.forEach(centro => {
-          mensaje += `📍 ${centro.clienteNombre} - ${centro.centroNombre}\n`;
-          mensaje += `   Días afectados: ${centro.dias.join(', ')}\n\n`;
-        });
-        
-        mensaje += `⚠️ Las asignaciones han sido marcadas como URGENTES.\n`;
-        mensaje += `Ve a Planificación para asignar suplentes.`;
-        
-        alert(mensaje);
-      } else {
-        alert('✅ Ausencia aprobada correctamente.\nNo hay asignaciones afectadas.');
-      }
-      
-      cargarDatos();
-    } catch (err) {
-      console.error('Error aprobando:', err);
-      alert('Error al aprobar ausencia');
-    }
-  };
-
-  const rechazar = async (id) => {
-    const motivo = prompt('Motivo del rechazo:');
-    if (!motivo) return;
-    
-    try {
-      await api.put(`/ausencias/${id}/rechazar`, { motivo });
-      cargarDatos();
-    } catch (err) {
-      console.error('Error rechazando:', err);
-      alert('Error al rechazar ausencia');
-    }
-  };
-
-  // NUEVO: Función para archivar/desarchivar
-  const toggleArchivar = async (id, archivada) => {
-    const accion = archivada ? 'desarchivar' : 'archivar';
-    if (!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} esta ausencia?`)) return;
-    
-    try {
-      await api.put(`/ausencias/${id}/archivar`, { archivada: !archivada });
-      alert(`✅ Ausencia ${archivada ? 'desarchivada' : 'archivada'} correctamente`);
-      cargarDatos();
-    } catch (err) {
-      console.error('Error archivando:', err);
-      alert('Error al archivar ausencia');
-    }
-  };
-
-  const getEstadoBadge = (estado) => {
-    const estilos = {
-      PENDIENTE: 'bg-yellow-100 text-yellow-800',
-      APROBADA: 'bg-green-100 text-green-800',
-      RECHAZADA: 'bg-red-100 text-red-800'
-    };
-    return estilos[estado] || 'bg-gray-100 text-gray-800';
-  };
-
-  // NUEVO: Helper para saber si la ausencia ya terminó
-  const ausenciaTerminada = (ausencia) => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    
-    // Si tiene fecha de alta real, usar esa
-    if (ausencia.fechaAltaReal) {
-      return new Date(ausencia.fechaAltaReal) < hoy;
-    }
-    
-    // Si no, usar fecha fin
-    return new Date(ausencia.fechaFin) < hoy;
-  };
-
-  const tipoSeleccionado = tiposAusencia.find(t => t.id === parseInt(form.tipoAusenciaId));
-  const esBajaMedica = tipoSeleccionado?.codigo === 'BM' || tipoSeleccionado?.codigo === 'BML';
 
   return (
-    <div className="ausencias-container">
-      <div className="ausencias-header">
+    <div className="min-h-screen bg-[#f0f4f8] p-5 lg:p-8" style={font}>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8 gap-4">
         <div>
-          <h1> Gestión de Ausencias</h1>
-          <p>Vacaciones, permisos, bajas médicas y más</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestion de Ausencias</h1>
+          <p className="text-gray-400 text-sm font-medium mt-1">Vacaciones, permisos, bajas medicas y mas</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {/* NUEVO: Botón toggle archivadas */}
-          <button 
-            onClick={() => setMostrarArchivadas(!mostrarArchivadas)} 
-            className={mostrarArchivadas ? 'btn-secondary' : 'btn-secondary'}
-            style={{
-              backgroundColor: mostrarArchivadas ? '#64748b' : '#e2e8f0',
-              color: mostrarArchivadas ? 'white' : '#334155'
-            }}
+        <div className="flex gap-3">
+          <button
+            onClick={() => setMostrarArchivadas(!mostrarArchivadas)}
+            className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
+              mostrarArchivadas
+                ? 'bg-gray-700 text-white'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
           >
-            {mostrarArchivadas ? ' Ocultar Archivadas' : ' Mostrar Archivadas'}
+            {mostrarArchivadas ? 'Ocultar Archivadas' : 'Mostrar Archivadas'}
           </button>
-          <button onClick={() => abrirModal()} className="btn-primary">
+          <button
+            onClick={() => abrirModal()}
+            className="px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm transition-colors"
+          >
             + Nueva Ausencia
           </button>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="filtros-container">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
         <select
           value={filtros.estado}
           onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}
-          className="filtro-select"
+          className={selectClass}
         >
           <option value="">Todos los estados</option>
           <option value="PENDIENTE">Pendientes</option>
@@ -259,7 +98,7 @@ function Ausencias() {
         <select
           value={filtros.trabajadorId}
           onChange={(e) => setFiltros({ ...filtros, trabajadorId: e.target.value })}
-          className="filtro-select"
+          className={selectClass}
         >
           <option value="">Todos los trabajadores</option>
           {trabajadores.map(t => (
@@ -270,128 +109,128 @@ function Ausencias() {
         </select>
       </div>
 
-      {/* Lista de ausencias */}
+      {/* Content */}
       {loading ? (
-        <div className="loading">Cargando...</div>
+        <div className="flex justify-center py-16">
+          <div className="flex gap-1.5">
+            {[0, 150, 300].map(d => (
+              <div key={d} className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+            ))}
+          </div>
+        </div>
       ) : ausencias.length === 0 ? (
-        <div className="sin-datos">
-          <p>{mostrarArchivadas ? 'No hay ausencias archivadas' : 'No hay ausencias registradas'}</p>
+        <div className={`${cardClass} text-center py-16`}>
+          <p className="text-gray-500 font-medium">{mostrarArchivadas ? 'No hay ausencias archivadas' : 'No hay ausencias registradas'}</p>
           {!mostrarArchivadas && (
-            <button onClick={() => abrirModal()} className="btn-secondary">
+            <button onClick={() => abrirModal()} className="mt-3 text-teal-600 hover:text-teal-700 text-sm font-medium">
               Registrar la primera
             </button>
           )}
         </div>
       ) : (
-        <div className="ausencias-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {ausencias.map(ausencia => {
             const terminada = ausenciaTerminada(ausencia);
-            
+
             return (
-              <div 
-                key={ausencia.id} 
-                className="ausencia-card"
+              <div
+                key={ausencia.id}
+                className={cardClass}
                 style={{
                   opacity: ausencia.archivada ? 0.7 : 1,
-                  borderLeft: ausencia.archivada ? '4px solid #94a3b8' : '4px solid transparent'
+                  borderLeft: ausencia.archivada ? '4px solid #94a3b8' : undefined
                 }}
               >
-                <div className="card-header">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3>
+                    <h3 className="font-bold text-gray-900 text-sm">
                       {ausencia.trabajador?.nombre} {ausencia.trabajador?.apellidos}
-                      {ausencia.archivada && <span style={{ marginLeft: '8px', fontSize: '14px' }}>📦</span>}
+                      {ausencia.archivada && <span className="ml-2 text-gray-400 text-xs">Archivada</span>}
                     </h3>
-                    <p className="tipo-ausencia" style={{ color: ausencia.tipoAusencia?.colorHex }}>
+                    <p className="text-sm font-medium mt-0.5" style={{ color: ausencia.tipoAusencia?.colorHex }}>
                       {ausencia.tipoAusencia?.nombre}
                     </p>
                   </div>
-                  <span className={`badge ${getEstadoBadge(ausencia.estado)}`}>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${estadoBadgeClass(ausencia.estado)}`}>
                     {ausencia.estado}
                   </span>
                 </div>
 
-                <div className="card-body">
-                  <div className="info-row">
-                    <span className="label">Periodo:</span>
-                    <span className="value">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Periodo</span>
+                    <span className="text-gray-700 font-medium">
                       {new Date(ausencia.fechaInicio).toLocaleDateString('es-ES')} - {new Date(ausencia.fechaFin).toLocaleDateString('es-ES')}
                     </span>
                   </div>
 
-                  {/* NUEVO: Mostrar fecha de alta real si existe */}
                   {ausencia.fechaAltaReal && (
-                    <div className="info-row" style={{ backgroundColor: '#dcfce7', padding: '8px', borderRadius: '6px' }}>
-                      <span className="label">✅ Alta real:</span>
-                      <span className="value" style={{ fontWeight: 'bold', color: '#16a34a' }}>
+                    <div className="flex justify-between bg-emerald-50 rounded-lg px-3 py-2">
+                      <span className="text-emerald-600">Alta real</span>
+                      <span className="text-emerald-700 font-bold">
                         {new Date(ausencia.fechaAltaReal).toLocaleDateString('es-ES')}
                       </span>
                     </div>
                   )}
 
-                  <div className="info-row">
-                    <span className="label">Duración:</span>
-                    <span className="value">{ausencia.diasTotales} días</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Duracion</span>
+                    <span className="text-gray-700 font-medium">{ausencia.diasTotales} dias</span>
                   </div>
 
                   {ausencia.motivo && (
-                    <div className="info-row">
-                      <span className="label">Motivo:</span>
-                      <span className="value">{ausencia.motivo}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Motivo</span>
+                      <span className="text-gray-700 text-right max-w-[60%] truncate">{ausencia.motivo}</span>
                     </div>
                   )}
 
                   {ausencia.numeroParte && (
-                    <div className="info-row">
-                      <span className="label">Nº Parte:</span>
-                      <span className="value">{ausencia.numeroParte}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">N Parte</span>
+                      <span className="text-gray-700 font-mono">{ausencia.numeroParte}</span>
                     </div>
                   )}
 
-                  {/* NUEVO: Indicador visual si la ausencia terminó */}
                   {terminada && ausencia.estado === 'APROBADA' && !ausencia.archivada && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      backgroundColor: '#fef3c7', 
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: '#92400e'
-                    }}>
-                      ⏱️ Esta ausencia ya finalizó. Puedes archivarla.
+                    <div className="bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+                      Esta ausencia ya finalizo. Puedes archivarla.
                     </div>
                   )}
                 </div>
 
-                <div className="card-actions">
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
                   {ausencia.estado === 'PENDIENTE' && !ausencia.archivada && (
                     <>
-                      <button onClick={() => aprobar(ausencia.id)} className="btn-approve">
-                        ✓ Aprobar
+                      <button
+                        onClick={() => aprobar(ausencia.id)}
+                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 text-xs font-medium transition-colors"
+                      >
+                        Aprobar
                       </button>
-                      <button onClick={() => rechazar(ausencia.id)} className="btn-reject">
-                        ✗ Rechazar
+                      <button
+                        onClick={() => rechazar(ausencia.id)}
+                        className="px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 text-xs font-medium transition-colors"
+                      >
+                        Rechazar
                       </button>
                     </>
                   )}
-                  <button onClick={() => abrirModal(ausencia)} className="btn-edit">
-                     Editar
-                  </button>
-                  {/* NUEVO: Botón archivar/desarchivar */}
-                  <button 
-                    onClick={() => toggleArchivar(ausencia.id, ausencia.archivada)} 
-                    className="btn-archive"
-                    style={{
-                      backgroundColor: ausencia.archivada ? '#3b82f6' : '#64748b',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '13px'
-                    }}
+                  <button
+                    onClick={() => abrirModal(ausencia)}
+                    className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 text-xs font-medium transition-colors"
                   >
-                    {ausencia.archivada ? ' Desarchivar' : ' Archivar'}
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => toggleArchivar(ausencia.id, ausencia.archivada)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      ausencia.archivada
+                        ? 'bg-sky-50 text-sky-700 hover:bg-sky-100'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {ausencia.archivada ? 'Desarchivar' : 'Archivar'}
                   </button>
                 </div>
               </div>
@@ -402,16 +241,19 @@ function Ausencias() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2>{editando ? 'Editar Ausencia' : 'Nueva Ausencia'}</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.15)] w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">{editando ? 'Editar Ausencia' : 'Nueva Ausencia'}</h2>
+            </div>
 
-            <form onSubmit={guardar} className="form-ausencia">
-              <div className="form-group">
-                <label>Trabajador *</label>
+            <form onSubmit={guardar} className="p-6 space-y-4">
+              <div>
+                <label className={labelClass}>Trabajador *</label>
                 <select
                   value={form.trabajadorId}
                   onChange={(e) => setForm({ ...form, trabajadorId: e.target.value })}
+                  className={inputClass}
                   required
                 >
                   <option value="">Seleccionar...</option>
@@ -423,125 +265,77 @@ function Ausencias() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label>Tipo de Ausencia *</label>
+              <div>
+                <label className={labelClass}>Tipo de Ausencia *</label>
                 <select
                   value={form.tipoAusenciaId}
                   onChange={(e) => setForm({ ...form, tipoAusenciaId: e.target.value })}
+                  className={inputClass}
                   required
                 >
                   <option value="">Seleccionar...</option>
                   {tiposAusencia.map(t => (
                     <option key={t.id} value={t.id}>
-                      {t.nombre} {t.diasMaximo ? `(máx ${t.diasMaximo} días)` : ''}
+                      {t.nombre} {t.diasMaximo ? `(max ${t.diasMaximo} dias)` : ''}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Fecha Inicio *</label>
-                  <input
-                    type="date"
-                    value={form.fechaInicio}
-                    onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })}
-                    required
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Fecha Inicio *</label>
+                  <input type="date" value={form.fechaInicio} onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })} className={inputClass} required />
                 </div>
-
-                <div className="form-group">
-                  <label>Fecha Fin *</label>
-                  <input
-                    type="date"
-                    value={form.fechaFin}
-                    onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
-                    min={form.fechaInicio}
-                    required
-                  />
+                <div>
+                  <label className={labelClass}>Fecha Fin *</label>
+                  <input type="date" value={form.fechaFin} onChange={(e) => setForm({ ...form, fechaFin: e.target.value })} min={form.fechaInicio} className={inputClass} required />
                 </div>
               </div>
 
-              {/* NUEVO: Campo de fecha de alta real (para TODOS los tipos) */}
-              <div className="form-group">
-                <label>Fecha Alta Real (Reincorporación anticipada)</label>
-                <input
-                  type="date"
-                  value={form.fechaAltaReal}
-                  onChange={(e) => setForm({ ...form, fechaAltaReal: e.target.value })}
-                  min={form.fechaInicio}
-                  max={form.fechaFin}
-                />
-                <small style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                  Si el trabajador se reincorpora antes de la fecha prevista, indícala aquí
-                </small>
+              <div>
+                <label className={labelClass}>Fecha Alta Real (Reincorporacion anticipada)</label>
+                <input type="date" value={form.fechaAltaReal} onChange={(e) => setForm({ ...form, fechaAltaReal: e.target.value })} min={form.fechaInicio} max={form.fechaFin} className={inputClass} />
+                <p className="text-xs text-gray-400 mt-1">Si el trabajador se reincorpora antes de la fecha prevista</p>
               </div>
 
-              {/* Campos específicos para Baja Médica */}
               {esBajaMedica && (
                 <>
-                  <div className="form-group">
-                    <label>Número de Parte *</label>
-                    <input
-                      type="text"
-                      value={form.numeroParte}
-                      onChange={(e) => setForm({ ...form, numeroParte: e.target.value })}
-                      placeholder="Ej: 123456789"
-                      required
-                    />
+                  <div>
+                    <label className={labelClass}>Numero de Parte *</label>
+                    <input type="text" value={form.numeroParte} onChange={(e) => setForm({ ...form, numeroParte: e.target.value })} placeholder="Ej: 123456789" className={inputClass} required />
                   </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Contingencia *</label>
-                      <select
-                        value={form.contingencia}
-                        onChange={(e) => setForm({ ...form, contingencia: e.target.value })}
-                        required
-                      >
-                        <option value="COMUN">Común</option>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Contingencia *</label>
+                      <select value={form.contingencia} onChange={(e) => setForm({ ...form, contingencia: e.target.value })} className={inputClass} required>
+                        <option value="COMUN">Comun</option>
                         <option value="LABORAL">Laboral</option>
                       </select>
                     </div>
-
-                    <div className="form-group">
-                      <label>Entidad Emisora</label>
-                      <input
-                        type="text"
-                        value={form.entidadEmisora}
-                        onChange={(e) => setForm({ ...form, entidadEmisora: e.target.value })}
-                        placeholder="INSS / Mutua"
-                      />
+                    <div>
+                      <label className={labelClass}>Entidad Emisora</label>
+                      <input type="text" value={form.entidadEmisora} onChange={(e) => setForm({ ...form, entidadEmisora: e.target.value })} placeholder="INSS / Mutua" className={inputClass} />
                     </div>
                   </div>
                 </>
               )}
 
-              <div className="form-group">
-                <label>Motivo</label>
-                <textarea
-                  value={form.motivo}
-                  onChange={(e) => setForm({ ...form, motivo: e.target.value })}
-                  rows="2"
-                  placeholder="Descripción breve..."
-                />
+              <div>
+                <label className={labelClass}>Motivo</label>
+                <textarea value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} rows="2" placeholder="Descripcion breve..." className={`${inputClass} resize-none`} />
               </div>
 
-              <div className="form-group">
-                <label>Observaciones</label>
-                <textarea
-                  value={form.observaciones}
-                  onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
-                  rows="3"
-                  placeholder="Notas internas, información adicional..."
-                />
+              <div>
+                <label className={labelClass}>Observaciones</label>
+                <textarea value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} rows="3" placeholder="Notas internas, informacion adicional..." className={`${inputClass} resize-none`} />
               </div>
 
-              <div className="modal-actions">
-                <button type="button" onClick={() => setModalOpen(false)} className="btn-cancel">
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setModalOpen(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-medium text-sm transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" className="btn-save">
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm transition-colors">
                   {editando ? 'Guardar Cambios' : 'Crear Ausencia'}
                 </button>
               </div>

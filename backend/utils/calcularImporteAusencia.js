@@ -85,7 +85,8 @@ async function obtenerHorasPerdidas(trabajadorId, fechaInicio, fechaFin) {
   const horasPorDia = {};
   
   asignaciones.forEach(asig => {
-    const fechaStr = new Date(asig.fecha).toISOString().split('T')[0];
+    const d = new Date(asig.fecha);
+    const fechaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     
     // Calcular horas del turno
     const [hi, mi] = asig.horaInicio.split(':').map(Number);

@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApiClient } from '../contexts/AuthContext';
+import * as trabajadoresApi from '../services/trabajadoresApi';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+
+function useFont(href) {
+  useEffect(() => {
+    if (!document.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+  }, []);
+}
 
 const ESTADOS_CIVILES = [
   { value: '', label: 'Sin especificar' },
@@ -39,7 +51,7 @@ const PROVINCIAS_ESPANA = [
 function AvatarInicial({ nombre, apellidos }) {
   const iniciales = `${nombre?.charAt(0) || ''}${apellidos?.charAt(0) || ''}`.toUpperCase();
   return (
-    <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+    <div className="w-24 h-24 bg-gradient-to-br from-teal-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg">
       {iniciales || '??'}
     </div>
   );
@@ -47,8 +59,8 @@ function AvatarInicial({ nombre, apellidos }) {
 
 function SeccionPerfil({ titulo, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-      <h2 className="text-lg font-bold text-slate-800 mb-4 pb-3 border-b border-slate-100">{titulo}</h2>
+    <div className="bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] p-6 mb-6">
+      <h2 className="text-lg font-extrabold text-gray-900 tracking-tight mb-4 pb-3 border-b border-gray-100">{titulo}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {children}
       </div>
@@ -59,7 +71,7 @@ function SeccionPerfil({ titulo, children }) {
 function CampoTexto({ label, value, onChange, type = 'text', required = false, placeholder = '', className = '' }) {
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-slate-600 mb-1">
+      <label className="block text-sm font-medium text-gray-500 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
@@ -68,7 +80,7 @@ function CampoTexto({ label, value, onChange, type = 'text', required = false, p
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all text-sm"
       />
     </div>
   );
@@ -77,14 +89,14 @@ function CampoTexto({ label, value, onChange, type = 'text', required = false, p
 function CampoSelect({ label, value, onChange, options, required = false, className = '' }) {
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-slate-600 mb-1">
+      <label className="block text-sm font-medium text-gray-500 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <select
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm bg-white"
+        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all text-sm bg-white"
       >
         {options.map(opt => (
           <option key={opt.value ?? opt} value={opt.value ?? opt}>
@@ -97,6 +109,8 @@ function CampoSelect({ label, value, onChange, options, required = false, classN
 }
 
 export default function PerfilTrabajador() {
+  useFont('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
   const { id } = useParams();
   const navigate = useNavigate();
   const api = useApiClient();
@@ -113,7 +127,7 @@ export default function PerfilTrabajador() {
   const cargarTrabajador = async () => {
     setLoading(true);
     try {
-      const data = await api.get(`/trabajadores/${id}`);
+      const data = await trabajadoresApi.getById(api, id);
       setTrabajador(data);
       setForm({
         nombre: data.nombre || '',
@@ -159,7 +173,7 @@ export default function PerfilTrabajador() {
       if (dataToSend.fechaNacimiento) {
         dataToSend.fechaNacimiento = new Date(dataToSend.fechaNacimiento).toISOString();
       }
-      await api.put(`/trabajadores/${id}`, dataToSend);
+      await trabajadoresApi.actualizar(api, id, dataToSend);
       setMensaje({ tipo: 'ok', texto: 'Perfil guardado correctamente' });
       setTimeout(() => setMensaje(null), 3000);
     } catch (err) {
@@ -170,10 +184,14 @@ export default function PerfilTrabajador() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
+      <div className="flex items-center justify-center h-full min-h-[400px]" style={{ fontFamily: '"Outfit", sans-serif' }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <p className="text-sm text-slate-500">Cargando perfil...</p>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <div className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <div className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce" />
+          </div>
+          <p className="text-sm text-gray-500">Cargando perfil...</p>
         </div>
       </div>
     );
@@ -181,9 +199,9 @@ export default function PerfilTrabajador() {
 
   if (!trabajador) {
     return (
-      <div className="p-6">
+      <div className="p-6" style={{ fontFamily: '"Outfit", sans-serif' }}>
         <p className="text-red-500">Trabajador no encontrado</p>
-        <button onClick={() => navigate('/trabajadores')} className="mt-4 text-blue-500 hover:underline">
+        <button onClick={() => navigate('/trabajadores')} className="mt-4 text-teal-600 hover:underline">
           Volver a trabajadores
         </button>
       </div>
@@ -191,33 +209,33 @@ export default function PerfilTrabajador() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#f0f4f8] p-5 lg:p-8 max-w-4xl mx-auto" style={{ fontFamily: '"Outfit", sans-serif' }}>
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate('/trabajadores')}
-          className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
         >
-          <ArrowLeft size={20} className="text-slate-600" />
+          <ArrowLeft size={20} className="text-gray-500" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-800">Perfil del trabajador</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Perfil del trabajador</h1>
       </div>
 
       {/* Card identidad */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] p-6 mb-6">
         <div className="flex items-center gap-5">
           <AvatarInicial nombre={form.nombre} apellidos={form.apellidos} />
           <div>
-            <h2 className="text-xl font-bold text-slate-800">
+            <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
               {form.nombre} {form.apellidos}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-gray-500 mt-1">
               {trabajador.categoria?.nombre || 'Sin categoría'}
             </p>
             <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium ${
               trabajador.activo
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-rose-50 text-rose-600'
             }`}>
               {trabajador.activo ? 'Activo' : 'Dado de baja'}
             </span>
@@ -229,8 +247,8 @@ export default function PerfilTrabajador() {
       {mensaje && (
         <div className={`mb-4 p-4 rounded-xl text-sm font-medium ${
           mensaje.tipo === 'ok'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-rose-50 text-rose-600 border border-rose-200'
         }`}>
           {mensaje.texto}
         </div>
@@ -280,9 +298,9 @@ export default function PerfilTrabajador() {
               id="compartirCumple"
               checked={form.compartirCumpleanos || false}
               onChange={(e) => updateField('compartirCumpleanos')(e.target.checked)}
-              className="w-4 h-4 text-blue-500 rounded border-slate-300 focus:ring-blue-500"
+              className="w-4 h-4 text-teal-600 rounded border-gray-200 focus:ring-teal-500"
             />
-            <label htmlFor="compartirCumple" className="text-sm text-slate-600">
+            <label htmlFor="compartirCumple" className="text-sm text-gray-500">
               Compartir cumpleaños con el equipo
             </label>
           </div>
@@ -316,14 +334,14 @@ export default function PerfilTrabajador() {
           <button
             type="button"
             onClick={() => navigate('/trabajadores')}
-            className="px-6 py-3 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+            className="px-6 py-3 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
           >
             {saving ? (
               <>

@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useApiClient } from '../../contexts/AuthContext';
+import * as acuerdosApi from '../../services/acuerdosApi';
+import * as trabajadoresApi from '../../services/trabajadoresApi';
+import * as centrosApi from '../../services/centrosApi';
+
+const inputClass = 'w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all';
+const labelClass = 'block text-sm font-medium text-gray-500 mb-2';
 
 export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
 {
@@ -24,8 +30,8 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
   const cargarDatos = async () => {
     try {
       const [trabData, centrosData] = await Promise.all([
-        api.get('/trabajadores'),
-        api.get('/centros')
+        trabajadoresApi.getAll(api),
+        centrosApi.getAll(api)
       ]);
       setTrabajadores(trabData.filter(t => t.activo));
       setCentros(centrosData.filter(c => c.activo));
@@ -36,7 +42,7 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.trabajadorId || !formData.tipoAcuerdo || !formData.valor) {
       alert('Rellena todos los campos obligatorios');
       return;
@@ -51,11 +57,11 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
         valor: parseFloat(formData.valor),
         fechaFin: formData.fechaFin || null
       };
-      
+
       if (acuerdo) {
-        await api.put(`/acuerdos-individuales/${acuerdo.id}`, data);
+        await acuerdosApi.actualizar(api, acuerdo.id, data);
       } else {
-        await api.post('/acuerdos-individuales', data);
+        await acuerdosApi.crear(api, data);
       }
       alert(acuerdo ? 'Acuerdo actualizado' : 'Acuerdo creado');
       onGuardar();
@@ -69,23 +75,26 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-200">
-          <h2 className="text-2xl font-bold text-slate-900">
-            {acuerdo ? 'Editar Acuerdo Individual' : 'Nuevo Acuerdo Individual'}
-          </h2>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.15)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-900">
+              {acuerdo ? 'Editar Acuerdo Individual' : 'Nuevo Acuerdo Individual'}
+            </h2>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xl">x</button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Trabajador <span className="text-red-500">*</span>
+            <label className={labelClass}>
+              Trabajador <span className="text-rose-500">*</span>
             </label>
             <select
               value={formData.trabajadorId}
               onChange={(e) => setFormData({ ...formData, trabajadorId: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className={inputClass}
               required
               disabled={!!acuerdo}
             >
@@ -100,13 +109,13 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tipo de Acuerdo <span className="text-red-500">*</span>
+              <label className={labelClass}>
+                Tipo de Acuerdo <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.tipoAcuerdo}
                 onChange={(e) => setFormData({ ...formData, tipoAcuerdo: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className={inputClass}
                 required
               >
                 <option value="PRECIO_HORA">Precio por Hora</option>
@@ -116,28 +125,26 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Valor (€) <span className="text-red-500">*</span>
+              <label className={labelClass}>
+                Valor (EUR) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.valor}
                 onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className={inputClass}
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Centro (Opcional)
-            </label>
+            <label className={labelClass}>Centro (Opcional)</label>
             <select
               value={formData.centroId}
               onChange={(e) => setFormData({ ...formData, centroId: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className={inputClass}
             >
               <option value="">Aplica a todos los centros</option>
               {centros.map(c => (
@@ -149,51 +156,51 @@ export default function ModalAcuerdo({ acuerdo, onClose, onGuardar })
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Descripción / Motivo</label>
+            <label className={labelClass}>Descripcion / Motivo</label>
             <textarea
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className={`${inputClass} resize-none`}
               rows="2"
-              placeholder="Antigüedad, disponibilidad 24/7, etc."
+              placeholder="Antiguedad, disponibilidad 24/7, etc."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Inicio</label>
+              <label className={labelClass}>Fecha Inicio</label>
               <input
                 type="date"
                 value={formData.fechaInicio}
                 onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Fin (Opcional)</label>
+              <label className={labelClass}>Fecha Fin (Opcional)</label>
               <input
                 type="date"
                 value={formData.fechaFin}
                 onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className={inputClass}
               />
             </div>
           </div>
 
           {/* Botones */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium"
+              className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-medium text-sm transition-colors"
               disabled={guardando}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium disabled:opacity-50"
+              className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm transition-colors disabled:opacity-50"
               disabled={guardando}
             >
               {guardando ? 'Guardando...' : acuerdo ? 'Actualizar' : 'Crear'}

@@ -30,9 +30,13 @@ const PerfilTrabajador = lazy(() => import('./pages/PerfilTrabajador'))
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-full min-h-[200px]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-500">Cargando...</p>
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex gap-1.5">
+          {[0, 150, 300].map(d => (
+            <div key={d} className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+          ))}
+        </div>
+        <p className="text-sm text-gray-400 font-medium">Cargando...</p>
       </div>
     </div>
   )
@@ -44,10 +48,10 @@ function PageLoader() {
 function PlaceholderPage({ title }) {
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">{title}</h1>
-      <div className="bg-white rounded-2xl p-12 shadow-sm border border-slate-100 text-center">
-        <p className="text-slate-500 text-lg">🚧 En construcción</p>
-        <p className="text-slate-400 mt-2">Esta sección estará disponible próximamente</p>
+      <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 mb-6">{title}</h1>
+      <div className="bg-white rounded-2xl p-12 shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] text-center">
+        <p className="text-gray-500 text-lg">En construccion</p>
+        <p className="text-gray-400 mt-2">Esta seccion estara disponible proximamente</p>
       </div>
     </div>
   )
@@ -61,8 +65,8 @@ function ProtectedRoute({ children }) {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Cargando...</div>
+      <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
+        <div className="flex gap-1.5">{[0,150,300].map(d=>(<div key={d} className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-bounce" style={{animationDelay:`${d}ms`}}/>))}</div>
       </div>
     )
   }
@@ -82,8 +86,8 @@ function LoginRoute() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Cargando...</div>
+      <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
+        <div className="flex gap-1.5">{[0,150,300].map(d=>(<div key={d} className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-bounce" style={{animationDelay:`${d}ms`}}/>))}</div>
       </div>
     )
   }
@@ -102,7 +106,7 @@ function AppLayout() {
   const { user } = useAuth()
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-[#f0f4f8] overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-auto pt-16 lg:pt-0">
         <ErrorBoundary>

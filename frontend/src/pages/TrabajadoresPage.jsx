@@ -3,8 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
 import HorariosFijos from './HorariosFijos';
 import { useApiClient } from '../contexts/AuthContext';
+import * as trabajadoresApi from '../services/trabajadoresApi';
+import * as categoriasApi from '../services/categoriasApi';
+import * as centrosApi from '../services/centrosApi';
+
+function useFont(href) {
+  useEffect(() => {
+    if (!document.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+  }, []);
+}
 
 export default function TrabajadoresPage() {
+  useFont('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+  const font = { fontFamily: '"Outfit", sans-serif' };
+
   const api = useApiClient();
   const navigate = useNavigate();
   const [trabajadores, setTrabajadores] = useState([])
@@ -37,9 +54,9 @@ export default function TrabajadoresPage() {
     setLoading(true)
     try {
       const [trabData, catData, centrosData] = await Promise.all([
-        api.get('/trabajadores'),
-        api.get('/categorias'),
-        api.get('/centros')
+        trabajadoresApi.getAll(api),
+        categoriasApi.getAll(api),
+        centrosApi.getAll(api)
       ])
       setTrabajadores(trabData)
       setCategorias(catData)
@@ -98,10 +115,10 @@ export default function TrabajadoresPage() {
 
       let trabajadorId
       if (editando) {
-        await api.put(`/trabajadores/${editando.id}`, datos)
+        await trabajadoresApi.actualizar(api, editando.id, datos)
         trabajadorId = editando.id
       } else {
-        const resultado = await api.post('/trabajadores', datos)
+        const resultado = await trabajadoresApi.crear(api, datos)
         trabajadorId = resultado.id
       }
 
@@ -109,12 +126,12 @@ export default function TrabajadoresPage() {
       if (editando) {
         const relacionesActuales = editando.centrosAsignados || []
         for (const rel of relacionesActuales) {
-          await api.del(`/trabajador-centro/${rel.id}`)
+          await trabajadoresApi.desvincularCentro(api, rel.id)
         }
       }
 
       for (const centroId of centrosSeleccionados) {
-        await api.post('/trabajador-centro', {
+        await trabajadoresApi.vincularCentro(api, {
           trabajadorId: trabajadorId,
           centroId: centroId,
           esHabitual: true
@@ -139,7 +156,7 @@ export default function TrabajadoresPage() {
       }
 
       try {
-        await api.put(`/trabajadores/${trabajador.id}/dar-baja`, { motivo })
+        await trabajadoresApi.darBaja(api, trabajador.id, { motivo })
         alert('Trabajador dado de baja correctamente')
         cargarDatos()
       } catch (err) {
@@ -156,7 +173,7 @@ export default function TrabajadoresPage() {
       }
 
       try {
-        await api.put(`/trabajadores/${trabajador.id}/reactivar`)
+        await trabajadoresApi.reactivar(api, trabajador.id)
         alert('Trabajador reactivado correctamente')
         cargarDatos()
       } catch (err) {
@@ -175,17 +192,17 @@ export default function TrabajadoresPage() {
     const trabajadoresInactivos = trabajadores.filter(t => !t.activo).length
 
     return (
-      <div className="p-6">
+      <div className="min-h-screen bg-[#f0f4f8] p-5 lg:p-8" style={font}>
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Trabajadores</h1>
-            <p className="text-slate-500">
+            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Trabajadores</h1>
+            <p className="text-gray-500">
               {trabajadoresActivos} activos • {trabajadoresInactivos} inactivos
             </p>
           </div>
           <button
             onClick={() => abrirModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-300"
           >
             <span className="text-xl">+</span> Nuevo Trabajador
           </button>
@@ -198,30 +215,34 @@ export default function TrabajadoresPage() {
             placeholder="Buscar trabajador..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="flex-1 max-w-md px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 max-w-md bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
           />
-          <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+          <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-all duration-300">
             <input
               type="checkbox"
               checked={mostrarInactivos}
               onChange={(e) => setMostrarInactivos(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
             />
-            <span className="text-sm text-slate-700">Mostrar inactivos</span>
+            <span className="text-sm text-gray-500">Mostrar inactivos</span>
           </label>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-slate-500">Cargando...</div>
+          <div className="flex items-center justify-center py-12 gap-2">
+            <span className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+            <span className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+            <span className="w-2.5 h-2.5 bg-teal-600 rounded-full animate-bounce"></span>
+          </div>
         ) : trabajadoresFiltrados.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
-            <p className="text-slate-500 mb-4">
+          <div className="text-center py-12 bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)]">
+            <p className="text-gray-500 mb-4">
               {mostrarInactivos ? 'No hay trabajadores inactivos' : 'No hay trabajadores registrados'}
             </p>
             {!mostrarInactivos && (
               <button
                 onClick={() => abrirModal()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
+                className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-300"
               >
                 Añadir el primero
               </button>
@@ -232,15 +253,15 @@ export default function TrabajadoresPage() {
             {trabajadoresFiltrados.map(t => (
               <div
                 key={t.id}
-                className={`bg-white rounded-2xl p-5 shadow-sm border transition-all ${t.activo
-                    ? 'border-slate-100 hover:shadow-md hover:border-blue-200'
-                    : 'border-red-200 bg-red-50'
+                className={`bg-white rounded-2xl p-6 transition-all duration-300 ${t.activo
+                    ? 'shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.07)]'
+                    : 'border border-rose-200 bg-rose-50/30'
                   }`}
               >
                 {/* BADGE INACTIVO */}
                 {!t.activo && (
                   <div className="mb-3">
-                    <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                    <span className="inline-block px-2.5 py-1 bg-rose-50 text-rose-600 text-xs font-semibold rounded-full">
                       INACTIVO
                     </span>
                   </div>
@@ -251,16 +272,16 @@ export default function TrabajadoresPage() {
                   className="cursor-pointer"
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold ${t.activo ? 'bg-gradient-to-br from-blue-500 to-cyan-400' : 'bg-gray-400'
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold ${t.activo ? 'bg-gradient-to-br from-teal-500 to-emerald-400' : 'bg-gray-400'
                       }`}>
                       {t.nombre.charAt(0)}{t.apellidos.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800">{t.nombre} {t.apellidos}</h3>
-                      <p className="text-sm text-slate-500">{t.categoria?.nombre || 'Sin categoría'}</p>
+                      <h3 className="font-extrabold tracking-tight text-gray-900">{t.nombre} {t.apellidos}</h3>
+                      <p className="text-sm text-gray-500">{t.categoria?.nombre || 'Sin categoría'}</p>
                     </div>
                   </div>
-                  <div className="text-sm text-slate-500 space-y-1">
+                  <div className="text-sm text-gray-400 space-y-1">
                     <p>{t.telefono || 'Sin teléfono'}</p>
                     <p>{t.tipoContrato} - {t.horasContrato}h/sem</p>
                     <p>{t.dni}</p>
@@ -268,14 +289,14 @@ export default function TrabajadoresPage() {
                 </div>
 
                 {/* BOTONES BAJA/REACTIVAR */}
-                <div className="mt-4 pt-4 border-t border-slate-200 flex gap-2">
+                <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
                   {t.activo ? (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         darDeBaja(t)
                       }}
-                      className="flex-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                      className="flex-1 px-3 py-2 text-sm bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all duration-300"
                     >
                       Dar de Baja
                     </button>
@@ -285,7 +306,7 @@ export default function TrabajadoresPage() {
                         e.stopPropagation()
                         reactivar(t)
                       }}
-                      className="flex-1 px-3 py-2 text-sm bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
+                      className="flex-1 px-3 py-2 text-sm bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all duration-300"
                     >
                       Reactivar
                     </button>
@@ -295,7 +316,7 @@ export default function TrabajadoresPage() {
                       e.stopPropagation()
                       navigate(`/trabajadores/${t.id}/perfil`)
                     }}
-                    className="flex-1 px-3 py-2 text-sm bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-all duration-300"
                   >
                     Perfil
                   </button>
@@ -304,7 +325,7 @@ export default function TrabajadoresPage() {
                       e.stopPropagation()
                       abrirModal(t)
                     }}
-                    className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                    className="flex-1 px-3 py-2 text-sm bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 transition-all duration-300"
                   >
                     Editar
                   </button>
@@ -318,22 +339,22 @@ export default function TrabajadoresPage() {
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Nombre *</label>
                 <input
                   type="text"
                   value={form.nombre}
                   onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Apellidos *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Apellidos *</label>
                 <input
                   type="text"
                   value={form.apellidos}
                   onChange={(e) => setForm({ ...form, apellidos: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 />
               </div>
@@ -341,43 +362,43 @@ export default function TrabajadoresPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">DNI *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">DNI *</label>
                 <input
                   type="text"
                   value={form.dni}
                   onChange={(e) => setForm({ ...form, dni: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Telefono</label>
                 <input
                   type="text"
                   value={form.telefono}
                   onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
               <input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Categoría *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Categoria *</label>
                 <select
                   value={form.categoriaId}
                   onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 >
                   <option value="">Seleccionar...</option>
@@ -387,11 +408,11 @@ export default function TrabajadoresPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo Contrato *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Tipo Contrato *</label>
                 <select
                   value={form.tipoContrato}
                   onChange={(e) => setForm({ ...form, tipoContrato: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 >
                   <option value="INDEFINIDO">Indefinido</option>
@@ -404,37 +425,37 @@ export default function TrabajadoresPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Horas/semana *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Horas/semana *</label>
                 <input
                   type="number"
                   value={form.horasContrato}
                   onChange={(e) => setForm({ ...form, horasContrato: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Alta *</label>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Fecha Alta *</label>
                 <input
                   type="date"
                   value={form.fechaAlta}
                   onChange={(e) => setForm({ ...form, fechaAlta: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-gray-500 mb-2">
                 Empresas/Centros Habituales
               </label>
-              <div className="border border-slate-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+              <div className="border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto">
                 {centros.length === 0 ? (
-                  <p className="text-sm text-slate-400">No hay centros disponibles</p>
+                  <p className="text-sm text-gray-400">No hay centros disponibles</p>
                 ) : (
                   centros.map(centro => (
-                    <label key={centro.id} className="flex items-center gap-2 py-2 hover:bg-slate-50 cursor-pointer">
+                    <label key={centro.id} className="flex items-center gap-2 py-2 hover:bg-gray-50 cursor-pointer rounded-lg px-1 transition-all duration-300">
                       <input
                         type="checkbox"
                         checked={centrosSeleccionados.includes(centro.id)}
@@ -445,22 +466,22 @@ export default function TrabajadoresPage() {
                             setCentrosSeleccionados(centrosSeleccionados.filter(id => id !== centro.id))
                           }
                         }}
-                        className="rounded border-slate-300"
+                        className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                       />
-                      <span className="text-sm text-slate-700">
+                      <span className="text-sm text-gray-500">
                         {centro.cliente?.nombre} - {centro.nombre}
                       </span>
                     </label>
                   ))
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Marca los centros donde este trabajador suele trabajar habitualmente
               </p>
             </div>
-            {/* ✅ HORARIOS FIJOS */}
+            {/* HORARIOS FIJOS */}
             {editando && (
-              <div className="border-t border-slate-200 pt-4 mt-4">
+              <div className="border-t border-gray-200 pt-4 mt-4">
                 <HorariosFijos trabajadorId={editando.id} />
               </div>
             )}
@@ -469,13 +490,13 @@ export default function TrabajadoresPage() {
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50"
+                className="flex-1 px-4 py-2.5 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-all duration-300"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
+                className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-300"
               >
                 {editando ? 'Guardar Cambios' : 'Crear Trabajador'}
               </button>

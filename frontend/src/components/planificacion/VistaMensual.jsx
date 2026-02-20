@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as ausenciasApi from '../../services/ausenciasApi';
 
 // Helper: formatear fecha como YYYY-MM-DD en zona local (evita bug de timezone con toISOString)
 function formatDateLocal(date) {
@@ -12,7 +13,7 @@ function getMonthDates(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  // Encontrar el lunes anterior o igual al primer día
+  // Encontrar el lunes anterior o igual al primer dia
   const startDate = new Date(firstDay);
   const dayOfWeek = startDate.getDay();
   const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -23,14 +24,14 @@ function getMonthDates(year, month) {
   while (dates.length < 42) {
     dates.push(new Date(current));
     current.setDate(current.getDate() + 1);
-    // Parar si ya pasamos el último día y completamos la semana
+    // Parar si ya pasamos el ultimo dia y completamos la semana
     if (current > lastDay && current.getDay() === 1 && dates.length >= 28) break;
   }
 
   return dates;
 }
 
-const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const diasSemana = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
 
 export default function VistaMensual({
   asignaciones,
@@ -52,7 +53,7 @@ export default function VistaMensual({
     if (!api) return;
     const cargarAusenciasMes = async () => {
       try {
-        const ausencias = await api.get('/ausencias');
+        const ausencias = await ausenciasApi.getAll(api);
         const firstDate = dates[0];
         const lastDate = dates[dates.length - 1];
         const activas = ausencias.filter(a => {
@@ -83,7 +84,7 @@ export default function VistaMensual({
     });
     if (ausencia?.estado === 'APROBADA') return '#ef4444'; // Rojo
     if (ausencia?.estado === 'PENDIENTE') return '#eab308'; // Amarillo
-    return '#3b82f6'; // Azul - disponible
+    return '#0d9488'; // Teal - disponible
   }, [ausenciasMes]);
 
   const getAsignacionesDia = (fecha) => {
@@ -104,14 +105,14 @@ export default function VistaMensual({
   return (
     <>
       {/* Vista desktop */}
-      <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        {/* Header días */}
-        <div className="grid grid-cols-7 border-b border-slate-200">
+      <div className="hidden lg:block bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] overflow-hidden">
+        {/* Header dias */}
+        <div className="grid grid-cols-7 border-b border-gray-200">
           {diasSemana.map((dia, i) => (
             <div
               key={dia}
-              className={`py-3 text-center text-sm font-semibold ${
-                i >= 5 ? 'text-slate-400 bg-slate-50' : 'text-slate-600'
+              className={`py-3 text-center text-xs font-semibold uppercase tracking-wider ${
+                i >= 5 ? 'text-gray-400 bg-gray-50' : 'text-gray-500'
               }`}
             >
               {dia}
@@ -119,9 +120,9 @@ export default function VistaMensual({
           ))}
         </div>
 
-        {/* Grid de días */}
+        {/* Grid de dias */}
         {weeks.map((week, weekIdx) => (
-          <div key={weekIdx} className="grid grid-cols-7 border-b border-slate-100 last:border-0">
+          <div key={weekIdx} className="grid grid-cols-7 border-b border-gray-100 last:border-0">
             {week.map((date, dayIdx) => {
               const asigsDia = getAsignacionesDia(date);
               const inMonth = isCurrentMonth(date);
@@ -135,19 +136,19 @@ export default function VistaMensual({
               return (
                 <div
                   key={dayIdx}
-                  className={`min-h-[120px] p-1.5 border-r border-slate-100 last:border-r-0 transition-colors ${
-                    !inMonth ? 'bg-slate-50/50 opacity-40' :
-                    todayClass ? 'bg-blue-50/50' :
-                    weekend ? 'bg-slate-50/30' : ''
+                  className={`min-h-[120px] p-1.5 border-r border-gray-100 last:border-r-0 transition-colors ${
+                    !inMonth ? 'bg-gray-50/50 opacity-40' :
+                    todayClass ? 'bg-teal-50/50' :
+                    weekend ? 'bg-gray-50/30' : ''
                   }`}
                 >
-                  {/* Número del día */}
+                  {/* Numero del dia */}
                   <div className="flex items-center justify-between mb-1">
                     <span
                       className={`text-sm font-medium px-1.5 py-0.5 rounded-lg ${
                         todayClass
-                          ? 'bg-blue-500 text-white'
-                          : inMonth ? 'text-slate-700' : 'text-slate-300'
+                          ? 'bg-teal-600 text-white'
+                          : inMonth ? 'text-gray-700' : 'text-gray-300'
                       }`}
                     >
                       {date.getDate()}
@@ -155,7 +156,7 @@ export default function VistaMensual({
                     {inMonth && centroSeleccionado && (
                       <button
                         onClick={() => onAbrirModal(date)}
-                        className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors text-xs"
+                        className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors text-xs"
                       >
                         +
                       </button>
@@ -178,7 +179,7 @@ export default function VistaMensual({
                             borderLeft: `3px solid ${color}`,
                             backgroundColor: color === '#ef4444' ? '#fee2e2' :
                               color === '#eab308' ? '#fef3c7' :
-                              color === '#9ca3af' ? '#f3f4f6' : '#dbeafe',
+                              color === '#9ca3af' ? '#f3f4f6' : '#ccfbf1',
                           }}
                           title={`${asig.trabajador?.nombre} ${asig.trabajador?.apellidos} | ${asig.horaInicio}-${asig.horaFin}${color === '#ef4444' ? ' (En baja)' : color === '#eab308' ? ' (Baja pendiente)' : ''}`}
                         >
@@ -188,9 +189,9 @@ export default function VistaMensual({
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); onEliminarAsignacion(asig.id); }}
-                            className="flex-shrink-0 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            className="flex-shrink-0 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                           >
-                            ×
+                            x
                           </button>
                         </div>
                       );
@@ -199,15 +200,15 @@ export default function VistaMensual({
                     {restantes > 0 && !isExpanded && (
                       <button
                         onClick={() => setExpandedDay(formatDateLocal(date))}
-                        className="text-[10px] text-blue-500 hover:text-blue-700 font-medium px-1.5"
+                        className="text-[10px] text-teal-600 hover:text-teal-700 font-medium px-1.5"
                       >
-                        +{restantes} más
+                        +{restantes} mas
                       </button>
                     )}
                     {isExpanded && asigsDia.length > MAX_VISIBLE && (
                       <button
                         onClick={() => setExpandedDay(null)}
-                        className="text-[10px] text-slate-400 hover:text-slate-600 font-medium px-1.5"
+                        className="text-[10px] text-gray-400 hover:text-gray-600 font-medium px-1.5"
                       >
                         Ver menos
                       </button>
@@ -220,7 +221,7 @@ export default function VistaMensual({
         ))}
       </div>
 
-      {/* Vista móvil - lista por día */}
+      {/* Vista movil - lista por dia */}
       <div className="lg:hidden space-y-3">
         {dates.filter(d => isCurrentMonth(d)).map((date, i) => {
           const asigsDia = getAsignacionesDia(date);
@@ -232,22 +233,22 @@ export default function VistaMensual({
           if (asigsDia.length === 0 && !todayClass) return null;
 
           return (
-            <div key={i} className={`bg-white rounded-xl border-2 overflow-hidden ${
-              todayClass ? 'border-blue-500' : 'border-slate-200'
+            <div key={i} className={`bg-white rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04)] ${
+              todayClass ? 'ring-2 ring-teal-500' : ''
             }`}>
               <div className={`p-3 ${
-                weekend ? 'bg-slate-100' : todayClass ? 'bg-blue-50' : 'bg-slate-50'
+                weekend ? 'bg-gray-50' : todayClass ? 'bg-teal-50' : 'bg-gray-50'
               }`}>
-                <h3 className="font-bold">
+                <h3 className="font-bold text-gray-900 text-sm">
                   {diaLabel} {date.getDate()}
                 </h3>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-gray-500">
                   {date.toLocaleDateString('es-ES', { month: 'long' })}
                 </p>
               </div>
               <div className="p-3 space-y-2">
                 {asigsDia.length === 0 ? (
-                  <p className="text-center text-slate-400 py-2 text-sm">Sin turnos</p>
+                  <p className="text-center text-gray-400 py-2 text-sm">Sin turnos</p>
                 ) : (
                   asigsDia.map(asig => {
                     const estaCancelado = asig.estado === 'CANCELADO';
@@ -255,26 +256,26 @@ export default function VistaMensual({
                     return (
                       <div
                         key={asig.id}
-                        className={`rounded-lg p-3 ${estaCancelado ? 'opacity-50' : ''}`}
+                        className={`rounded-xl p-3 ${estaCancelado ? 'opacity-50' : ''}`}
                         style={{
                           borderLeft: `4px solid ${color}`,
                           backgroundColor: color === '#ef4444' ? '#fee2e2' :
                             color === '#eab308' ? '#fef3c7' :
-                            color === '#9ca3af' ? '#f3f4f6' : '#dbeafe',
+                            color === '#9ca3af' ? '#f3f4f6' : '#ccfbf1',
                         }}
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-medium text-slate-800 text-sm">
+                            <p className="font-medium text-gray-900 text-sm">
                               {asig.trabajador?.nombre} {asig.trabajador?.apellidos}
                             </p>
-                            <p className="text-xs text-slate-600">
+                            <p className="text-xs text-gray-500">
                               {asig.horaInicio} - {asig.horaFin}
                             </p>
                           </div>
                           <button
                             onClick={() => onEliminarAsignacion(asig.id)}
-                            className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs"
+                            className="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs font-medium hover:bg-rose-100 transition-colors"
                           >
                             Eliminar
                           </button>
@@ -286,9 +287,9 @@ export default function VistaMensual({
                 {centroSeleccionado && (
                   <button
                     onClick={() => onAbrirModal(date)}
-                    className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 text-sm"
+                    className="w-full py-2.5 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 text-sm transition-all"
                   >
-                    + Añadir turno
+                    + Anadir turno
                   </button>
                 )}
               </div>

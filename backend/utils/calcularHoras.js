@@ -52,18 +52,23 @@ function calcularHorasNocturnas(horaInicio, horaFin) {
 
 /**
  * Verifica si una fecha es festivo
+ * Normaliza a rango UTC para evitar desajustes de timezone
  */
 async function esFestivo(fecha) {
+  const d = new Date(fecha);
+  const inicioUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const finUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate() + 1));
+
   const festivoEncontrado = await prisma.festivo.findFirst({
     where: {
-      fecha: new Date(fecha),
+      fecha: { gte: inicioUTC, lt: finUTC },
       OR: [
         { ambito: 'Nacional' },
         { ambito: 'Navarra' }
       ]
     }
   });
-  
+
   return !!festivoEncontrado;
 }
 
